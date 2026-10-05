@@ -1,0 +1,19 @@
+# Core Data Processing & Numerics
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database & Warehouse Connectors
+psycopg2-binary>=2.9.6
+
+# REST API & Web Server
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+pydantic>=2.0.0
+
+# Testing & Quality Assurance
+pytest>=7.4.0
+pytest-cov>=4.1.0
+httpx>=0.24.0
+
+# Utilities & Configuration
+python-dotenv>=1.0.0
