@@ -1,14 +1,14 @@
-# LedgerFlow — Enterprise Banking Data Warehouse & Modern Data Platform
+# LedgerFlow — Banking ETL Pipeline & PostgreSQL Warehouse
 
-**LedgerFlow** is an end-to-end, production-grade Banking Data Engineering platform built in Python, PostgreSQL, and FastAPI. It ingests 10 core banking datasets (~5.8M rows), enforces strict schema validations and cross-table referential integrity, quarantines bad records into an audited Dead Letter Queue (DLQ), loads 5.12M+ curated records into a PostgreSQL Data Warehouse via native bulk COPY streaming, materializes Customer 360 analytics marts, and serves REST APIs.
+**LedgerFlow** is an end-to-end banking data pipeline and relational data warehouse implemented in Python, PostgreSQL, and FastAPI. It processes 10 relational banking datasets (~5.8M raw records) with automated data quality checks, referential integrity validation, a Dead Letter Queue (DLQ) for auditability, high-speed PostgreSQL bulk ingestion via `COPY`, and analytical marts for reporting and APIs.
 
 ---
 
-## ⚡ One-Command Run
+## ⚡ Quickstart
 
-You can run the entire platform — from running all 41 test cases to orchestrating the complete 10-dataset pipeline and database load — with a single command:
+You can test and execute the end-to-end pipeline locally with a single script:
 
-### Option A: Local CLI One-Command Run (Recommended)
+### Option A: Local CLI Execution
 ```bash
 ./run_all.sh
 ```
@@ -16,17 +16,17 @@ You can run the entire platform — from running all 41 test cases to orchestrat
 ```bash
 make run
 ```
-> **What this executes automatically:**
-> 1. Runs the **41 Pytest validator tests** (verifying 100% data quality & integrity pass).
-> 2. Executes the **10-dataset Medallion Pipeline** in dependency order (~5.8M raw rows -> 5.12M curated rows + audited DLQ).
-> 3. Connects to PostgreSQL, performs bulk `COPY` streaming, and refreshes Customer 360 & analytical marts (if DB is running).
-> 4. Prints a full audit report with execution times and records breakdown.
+> **What this executes:**
+> 1. Runs **41 Pytest validation tests** (verifying schema rules, domain checks, and integrity constraints).
+> 2. Executes the **10-dataset pipeline in topological dependency order** (~5.8M raw rows -> ~5.15M curated rows + bad records routed to DLQ).
+> 3. Connects to PostgreSQL, loads curated data via `COPY`, and refreshes analytical tables (when database connection is available).
+> 4. Generates an execution summary report showing processed counts and runtimes.
 
-### Option B: Fully Dockerized One-Command Run
+### Option B: Dockerized Setup
 ```bash
 docker-compose up --build -d
 ```
-Spins up PostgreSQL 15 and the FastAPI REST service in isolated containers with auto-initialized schemas and health checks.
+Spins up PostgreSQL 15 and the FastAPI service with auto-initialized schemas and health checks.
 
 ---
 
@@ -34,7 +34,7 @@ Spins up PostgreSQL 15 and the FastAPI REST service in isolated containers with 
 
 ```mermaid
 flowchart TD
-    subgraph L1["1. Raw Medallion Layer"]
+    subgraph L1["1. Raw Layer (CSV)"]
         R1["customers.csv (60k)"]
         R2["accounts.csv (95k)"]
         R3["transactions.csv (2.0M)"]
@@ -47,12 +47,12 @@ flowchart TD
         R10["support_tickets.csv (25k)"]
     end
 
-    subgraph L2["2. Validation & Quarantine Engine"]
-        V["Business Rules & Cross-Table Referential Integrity"]
-        DLQ["Dead Letter Queue (DLQ)\ndata/bad_records/*\n(Audit Metadata: Stage, Reason, Timestamp)"]
+    subgraph L2["2. Validation & Quarantine"]
+        V["Data Quality Rules & Referential Integrity Checks"]
+        DLQ["Dead Letter Queue (DLQ)\ndata/bad_records/*\n(Audit Metadata: Reason, Stage, Timestamp)"]
     end
 
-    subgraph L3["3. Curated Medallion Layer"]
+    subgraph L3["3. Curated Layer"]
         C1["curated/customers.csv (55k)"]
         C2["curated/accounts.csv (87k)"]
         C3["curated/transactions.csv (1.83M)"]
@@ -62,11 +62,11 @@ flowchart TD
         C7["curated/card_transactions.csv (2.52M)"]
     end
 
-    subgraph L4["4. Enterprise PostgreSQL Data Warehouse"]
-        PG["PostgreSQL (bank_dwh)\n- Foreign Key Enforcement\n- B-Tree Performance Indexes\n- Native COPY Bulk Streaming"]
+    subgraph L4["4. Relational Warehouse"]
+        PG["PostgreSQL (bank_dwh)\n- Foreign Key Enforcement\n- B-Tree Indexes\n- Bulk COPY Ingestion"]
     end
 
-    subgraph L5["5. Analytical Marts & APIs"]
+    subgraph L5["5. Analytical Marts & Service"]
         M1["customer_360"]
         M2["monthly_customer_summary"]
         M3["monthly_branch_summary"]
@@ -85,37 +85,39 @@ flowchart TD
 
 ---
 
-## 2. Key Engineering Highlights
+## 2. Architecture & Design Decisions
 
-* **Medallion Architecture**: Strict isolation of Raw, Quarantine (DLQ), and Curated layers.
-* **Pre-Load Referential Integrity**: Verifies foreign keys in-memory before loading into PostgreSQL (e.g., rejecting transactions for accounts whose customer failed credit score rules).
-* **Chunked High-Throughput Streaming**: Streams multi-million row files (2M transactions, 3M card transactions) in 200k–300k record batches, maintaining a flat memory footprint and executing the entire 5.8M+ record pipeline in ~35 seconds.
-* **Audited Dead Letter Queue (DLQ)**: Zero data loss. Every rejected record is stamped with forensic audit fields:
-  * `rejection_reason` (e.g., `Customer ID 8888 not found in Curated Customers`)
+* **Tiered Data Storage Pattern**: Separates Raw ingestion data, Curated validated data, and Quarantined (bad) records to ensure traceability and prevent corrupt data from propagating downstream.
+* **Pre-Load Foreign Key Validation**: Verifies parent-child relational constraints in Python before loading into PostgreSQL, ensuring high-throughput batch loads don't fail midway due to FK violations (e.g., rejecting transactions pointing to dropped accounts).
+* **Chunked File Streaming**: High-volume files (2M transactions, 3M card transactions) are processed in chunks (`chunksize=250k-300k`), avoiding memory exhaustion and keeping memory usage predictable.
+* **Audited Dead Letter Queue (DLQ)**: Rejected records are isolated into separate quarantine CSVs alongside audit metadata:
+  * `rejection_reason` (e.g., `Customer ID not found in curated customers`)
   * `validation_stage` (`Primary Key Constraint`, `Referential Integrity`, `Domain Boundary Check`, `Format Validation`, `Accounting Reconciliation`)
   * `pipeline_name`
   * `processed_at`
-* **Automated Master Orchestration**: Executes all 10 pipelines in strict topological dependency order (Branches -> Employees -> Customers -> Accounts -> Transactions / Loans / Cards -> Payments / Support).
-* **Dimensional Modeling & Analytical Marts**: Fully indexed relational schema with materializations for `customer_360`, monthly customer summaries, and branch profitability.
-* **Sub-10ms REST API**: FastAPI backend providing instant sub-10ms queries over 5+ million warehouse records with Swagger docs.
+* **Dependency-Aware Orchestration**: Executes datasets in strict topological order (`Branches` -> `Employees` -> `Customers` -> `Accounts` -> `Transactions` / `Loans` / `Cards` -> `Payments` / `Support`). Also includes an Airflow DAG definition (`dags/banking_pipeline_dag.py`) demonstrating production workflow orchestration.
+* **Efficient Bulk Loading via `COPY`**: Leverages PostgreSQL's native `COPY` command via `psycopg2` rather than slow row-by-row `INSERT` statements, enabling multi-million row loads in seconds.
+* **Analytical Serving Layer**: PostgreSQL aggregation scripts materialize dimensional summary tables (`customer_360`, branch metrics) served directly via indexed queries in a lightweight FastAPI application.
 
 ---
 
-## 3. Data Pipeline Metrics
+## 3. Dataset & Pipeline Summary
 
-| Dataset / Entity | Raw Records Ingested | Curated (Good) | Quarantined (DLQ) | Success Rate | Ingestion Method |
+*(Metrics from a local execution run across the sample banking dataset)*
+
+| Dataset / Entity | Raw Records | Curated (Clean) | Quarantined (DLQ) | Valid Pass Rate | Ingestion Method |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`branches`** | 150 | 150 | 0 | 100.0% | Pandas In-Memory |
-| **`employees`** | 1,800 | 1,800 | 0 | 100.0% | Referential In-Memory |
-| **`customers`** | 60,000 | 55,050 | 4,950 | 91.75% | Pandas In-Memory |
-| **`accounts`** | 95,000 | 87,177 | 7,823 | 91.77% | Referential In-Memory |
-| **`transactions`** | 2,000,000 | 1,835,551 | 164,449 | 91.78% | 250k Stream Chunks |
-| **`loans`** | 22,000 | 20,137 | 1,863 | 91.53% | Referential In-Memory |
-| **`loan_payments`** | 600,000 | 549,015 | 50,985 | 91.50% | 200k Stream Chunks |
-| **`cards`** | 65,000 | 54,643 | 10,357 | 84.07% | Dual Referential Check |
-| **`card_transactions`**| 3,000,000 | 2,521,980 | 478,020 | 84.07% | 300k Stream Chunks |
-| **`support_tickets`** | 25,000 | 22,927 | 2,073 | 91.71% | Referential In-Memory |
-| **TOTAL** | **5,868,950** | **5,148,430** | **720,520** | **87.72%** | **~35s End-to-End** |
+| **`branches`** | 150 | 150 | 0 | 100.0% | In-Memory (Master Lookup) |
+| **`employees`** | 1,800 | 1,800 | 0 | 100.0% | In-Memory (FK: Branch) |
+| **`customers`** | 60,000 | 55,050 | 4,950 | 91.75% | In-Memory (Cleanse & Rules) |
+| **`accounts`** | 95,000 | 87,177 | 7,823 | 91.77% | In-Memory (FK: Customer) |
+| **`transactions`** | 2,000,000 | 1,835,551 | 164,449 | 91.78% | Chunked Stream (250k rows/chunk) |
+| **`loans`** | 22,000 | 20,137 | 1,863 | 91.53% | In-Memory (FK: Customer) |
+| **`loan_payments`** | 600,000 | 549,015 | 50,985 | 91.50% | Chunked Stream (200k rows/chunk) |
+| **`cards`** | 65,000 | 54,643 | 10,357 | 84.07% | In-Memory (Dual FK: Customer & Account) |
+| **`card_transactions`**| 3,000,000 | 2,521,980 | 478,020 | 84.07% | Chunked Stream (300k rows/chunk) |
+| **`support_tickets`** | 25,000 | 22,927 | 2,073 | 91.71% | In-Memory (FK: Customer) |
+| **TOTAL** | **5,868,950** | **5,148,430** | **720,520** | **87.72%** | **Chunked ETL + Native COPY** |
 
 ---
 
