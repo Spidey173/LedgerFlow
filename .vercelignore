@@ -1,0 +1,16 @@
+# Data files (large datasets)
+data/
+*.csv
+*.parquet
+
+# Logs and cache
+logs/
+*.log
+__pycache__/
+.pytest_cache/
+.git/
+
+# Local envs
+.env
+venv/
+.venv/
