@@ -141,3 +141,6 @@ CREATE INDEX idx_card_txns_card_id ON card_transactions(card_id);
 CREATE INDEX idx_card_txns_txn_date ON card_transactions(txn_date);
 CREATE INDEX idx_employees_branch_id ON employees(branch_id);
 CREATE INDEX idx_tickets_customer_id ON support_tickets(customer_id);
+CREATE INDEX idx_loans_status ON loans(status);
+CREATE INDEX idx_cards_status ON cards(status);
+CREATE INDEX idx_card_txns_fraud ON card_transactions(is_fraud);

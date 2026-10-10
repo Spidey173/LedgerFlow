@@ -2,10 +2,12 @@
 
 [![API Docs / Interactive Schema](https://img.shields.io/badge/API%20Docs-Interactive%20Schema-009688?style=for-the-badge&logo=fastapi)](https://ledgerflow17.vercel.app/docs)
 [![Live Deployment](https://img.shields.io/badge/Live%20API-ledgerflow17.vercel.app-blue?style=for-the-badge&logo=vercel)](https://ledgerflow17.vercel.app/)
+[![Database](https://img.shields.io/badge/Database-Neon%20PostgreSQL-00E599?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech)
 [![Tests](https://img.shields.io/badge/Pytest-41%20Passed-brightgreen?style=for-the-badge&logo=pytest)](tests/test_validation.py)
 
 > 🌐 **Live Interactive Schema & Swagger UI**: **[https://ledgerflow17.vercel.app/docs](https://ledgerflow17.vercel.app/docs)**  
-> 📊 **Live Executive Dashboard API**: **[https://ledgerflow17.vercel.app/dashboard](https://ledgerflow17.vercel.app/dashboard)**
+> 📊 **Live Executive Dashboard API**: **[https://ledgerflow17.vercel.app/dashboard](https://ledgerflow17.vercel.app/dashboard)**  
+> ⚡ **Cloud Warehouse**: Live Neon Serverless PostgreSQL cluster running ~1.9M curated & dimensional warehouse records.
 
 **LedgerFlow** is an end-to-end banking data pipeline and relational data warehouse implemented in Python, PostgreSQL, and FastAPI. It processes 10 relational banking datasets (~5.8M raw records) with automated data quality checks, referential integrity validation, a Dead Letter Queue (DLQ) for auditability, high-speed PostgreSQL bulk ingestion via `COPY`, and analytical marts for reporting and APIs.
 

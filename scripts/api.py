@@ -12,7 +12,7 @@ except ImportError:
     PSYCOPG2_AVAILABLE = False
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+from utils.config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DATABASE_URL
 
 app = FastAPI(
     title="LedgerFlow — Banking Data Warehouse API",
@@ -122,17 +122,26 @@ def get_db():
     if not PSYCOPG2_AVAILABLE:
         return None
     try:
+        db_url = os.getenv("DATABASE_URL") or DATABASE_URL
+        if db_url:
+            conn = psycopg2.connect(
+                db_url,
+                connect_timeout=10,
+                cursor_factory=RealDictCursor
+            )
+            return conn
         conn = psycopg2.connect(
             host=DB_HOST,
             port=DB_PORT,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD,
-            connect_timeout=2,
+            connect_timeout=3,
             cursor_factory=RealDictCursor
         )
         return conn
-    except Exception:
+    except Exception as e:
+        print(f"[get_db] DB Connection error: {e}")
         return None
 
 @app.get("/")
@@ -334,6 +343,38 @@ def get_loans(customer_id: Optional[int] = None, status: Optional[str] = None, l
         filtered = [l for l in filtered if l["customer_id"] == customer_id]
     if status:
         filtered = [l for l in filtered if l["status"].lower() == status.lower()]
+    sliced = filtered[:limit]
+    return {"total": len(sliced), "data": sliced, "source": "curated_cache"}
+
+@app.get("/cards")
+def get_cards(customer_id: Optional[int] = None, card_type: Optional[str] = None, limit: int = 50):
+    conn = get_db()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            query = "SELECT * FROM cards WHERE 1=1"
+            params = []
+            if customer_id:
+                query += " AND customer_id = %s"
+                params.append(customer_id)
+            if card_type:
+                query += " AND LOWER(card_type) = LOWER(%s)"
+                params.append(card_type)
+            query += " ORDER BY card_id LIMIT %s"
+            params.append(limit)
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+        except Exception as e:
+            print(f"Error fetching cards: {e}")
+
+    filtered = DEMO_CARDS
+    if customer_id:
+        filtered = [c for c in filtered if c["customer_id"] == customer_id]
+    if card_type:
+        filtered = [c for c in filtered if c["card_type"].lower() == card_type.lower()]
     sliced = filtered[:limit]
     return {"total": len(sliced), "data": sliced, "source": "curated_cache"}
 
