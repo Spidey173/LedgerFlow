@@ -148,10 +148,12 @@ def get_db():
 def root():
     return {
         "status": "online",
-        "service": "LedgerFlow Data Warehouse API",
+        "service": "LedgerFlow Data Warehouse & AWS Lakehouse API",
         "docs": "/docs",
         "redoc": "/redoc",
-        "architecture": "Medallion Layer (Raw -> DLQ Quarantine -> Curated -> Warehouse Marts)",
+        "architecture": "Medallion Lakehouse (S3 Bronze -> S3 Silver -> PostgreSQL Warehouse Marts)",
+        "security": "AWS SSM Parameter Store (/ledgerflow/zip_password) + AES-256 Encrypted Ingestion",
+        "cloud_storage": "AWS S3 (s3://ledgerflow-banking-511492912610/)",
         "entities": ["/customers", "/accounts", "/transactions", "/loans", "/cards", "/customer-360", "/dashboard"]
     }
 
@@ -170,9 +172,15 @@ def health_check():
             db_connected = False
     return {
         "status": "healthy",
-        "platform": "LedgerFlow",
+        "platform": "LedgerFlow Banking Platform",
         "database_connected": db_connected,
-        "mode": "live_warehouse" if db_connected else "curated_cache_demo"
+        "mode": "live_warehouse" if db_connected else "curated_cache_demo",
+        "cloud_lakehouse": {
+            "provider": "AWS",
+            "region": "ap-south-1",
+            "s3_bucket": "ledgerflow-banking-511492912610",
+            "security": "AWS SSM Parameter Store (SecureString AES Decryption)"
+        }
     }
 
 @app.get("/customers")
