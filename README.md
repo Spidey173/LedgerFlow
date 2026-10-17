@@ -1,5 +1,6 @@
 # LedgerFlow — Banking Data Engineering Pipeline & PostgreSQL Warehouse
 
+[![CI Pipeline](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml)
 [![API Docs / Interactive Schema](https://img.shields.io/badge/API%20Docs-Interactive%20Schema-009688?style=for-the-badge&logo=fastapi)](https://ledgerflow17.vercel.app/docs)
 [![Live Deployment](https://img.shields.io/badge/Live%20API-ledgerflow17.vercel.app-blue?style=for-the-badge&logo=vercel)](https://ledgerflow17.vercel.app/)
 [![Database](https://img.shields.io/badge/Database-Neon%20PostgreSQL-00E599?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech)
