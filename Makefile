@@ -37,6 +37,9 @@ aws-flink:
 aws-pipeline:
 	python3 cloud_aws/run_cloud_pipeline.py --flink
 
+aws-secure:
+	./venv/bin/python cloud_aws/secure_ingest.py
+
 help:
 	@echo "LedgerFlow: Modern Banking Data Platform - Available Commands:"
 	@echo "  make run          - Run unit tests and full 10-dataset ETL pipeline"
