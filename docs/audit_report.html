@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LedgerFlow — Data Quality & DLQ Audit Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0A0F1D;
+            --surface: #131B2E;
+            --surface-border: #1E293B;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --accent-green: #10B981;
+            --accent-cyan: #06B6D4;
+            --accent-red: #EF4444;
+            --accent-yellow: #F59E0B;
+            --accent-blue: #3B82F6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            padding: 32px 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--surface-border);
+        }
+        .title-group h1 {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38BDF8, #818CF8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .title-group p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 6px;
+        }
+        .nav-links a {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        .btn-primary {
+            background: #2563EB;
+            color: #fff;
+        }
+        .btn-primary:hover { background: #1D4ED8; }
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text-main);
+            border: 1px solid var(--surface-border);
+        }
+        .btn-secondary:hover { border-color: #475569; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .kpi-card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+        }
+        .kpi-green::before { background: var(--accent-green); }
+        .kpi-cyan::before { background: var(--accent-cyan); }
+        .kpi-red::before { background: var(--accent-red); }
+        .kpi-blue::before { background: var(--accent-blue); }
+        .kpi-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 800;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+        .table-card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+        .table-card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--surface-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .table-card-header h2 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--surface-border);
+        }
+        td {
+            padding: 14px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .governance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .gov-card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .gov-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: #38BDF8;
+        }
+        .gov-list li {
+            list-style: none;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .gov-list li strong { color: var(--text-main); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="title-group">
+                <h1>LedgerFlow — Data Quality & DLQ Audit Report</h1>
+                <p>Enterprise Data Reliability, Referential Integrity, and Dead Letter Queue Audit Trail</p>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="btn-secondary">Executive Dashboard</a>
+                <a href="/docs" class="btn-primary">Interactive Swagger Docs</a>
+            </div>
+        </header>
+
+        <section class="kpi-grid">
+            <div class="kpi-card kpi-blue">
+                <div class="kpi-title">Total Records Ingested</div>
+                <div class="kpi-value">5,868,950</div>
+                <div class="kpi-sub">10 Relational Datasets</div>
+            </div>
+            <div class="kpi-card kpi-green">
+                <div class="kpi-title">Curated Clean Records</div>
+                <div class="kpi-value">5,148,430</div>
+                <div class="kpi-sub">Committed to Warehouse</div>
+            </div>
+            <div class="kpi-card kpi-red">
+                <div class="kpi-title">Quarantined (DLQ)</div>
+                <div class="kpi-value">720,520</div>
+                <div class="kpi-sub">Audited & Isolated</div>
+            </div>
+            <div class="kpi-card kpi-cyan">
+                <div class="kpi-title">Overall Pass Rate</div>
+                <div class="kpi-value">87.72%</div>
+                <div class="kpi-sub">Data Quality Integrity</div>
+            </div>
+        </section>
+
+        <section class="table-card">
+            <div class="table-card-header">
+                <h2>Entity-Level Data Quality & Quarantine Breakdown (10 Banking Datasets)</h2>
+                <span class="badge">41 Pytest Validators Verified</span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dataset</th>
+                            <th>Raw Ingested</th>
+                            <th>Curated Clean</th>
+                            <th>Quarantined (DLQ)</th>
+                            <th style="min-width: 180px;">Pass Rate</th>
+                            <th>Validation Stage</th>
+                            <th>Top Rejection Root Cause</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">branches</td>
+            <td>150</td>
+            <td style="color: #00F5D4;">150</td>
+            <td style="color: #FF5A5F;">0</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 100.0%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">100.0%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Master Lookup</td>
+            <td style="font-size: 12px; color: #A0AAB2;">None (100% Passed)</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">employees</td>
+            <td>1,800</td>
+            <td style="color: #00F5D4;">1,800</td>
+            <td style="color: #FF5A5F;">0</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 100.0%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">100.0%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">FK: branches</td>
+            <td style="font-size: 12px; color: #A0AAB2;">None (100% Passed)</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">customers</td>
+            <td>60,000</td>
+            <td style="color: #00F5D4;">55,050</td>
+            <td style="color: #FF5A5F;">4,950</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 91.75%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">91.75%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Domain Boundaries</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Credit score out of bounds (<300 or >850) / Invalid email</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">accounts</td>
+            <td>95,000</td>
+            <td style="color: #00F5D4;">87,177</td>
+            <td style="color: #FF5A5F;">7,823</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 91.77%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">91.77%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">FK: customers & branches</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Customer ID not in curated customers / Unapproved status</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">transactions</td>
+            <td>2,000,000</td>
+            <td style="color: #00F5D4;">1,835,551</td>
+            <td style="color: #FF5A5F;">164,449</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 91.78%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">91.78%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Streaming Integrity & FK</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Account ID not found in curated accounts / Zero amount</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">loans</td>
+            <td>22,000</td>
+            <td style="color: #00F5D4;">20,137</td>
+            <td style="color: #FF5A5F;">1,863</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 91.53%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">91.53%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">FK: customers</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Customer ID not in curated customers / Interest rate out of bounds</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">loan_payments</td>
+            <td>600,000</td>
+            <td style="color: #00F5D4;">549,015</td>
+            <td style="color: #FF5A5F;">50,985</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 91.5%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">91.5%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Accounting Reconciliation</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Principal + Interest != Total Amount (> $0.05 tolerance)</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">cards</td>
+            <td>65,000</td>
+            <td style="color: #00F5D4;">54,643</td>
+            <td style="color: #FF5A5F;">10,357</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 84.07%; height: 100%; background: #FFB703; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #FFB703; min-width: 48px;">84.07%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Dual FK: customer & account</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Orphan account / Expiry date precedes issue date</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">card_transactions</td>
+            <td>3,000,000</td>
+            <td style="color: #00F5D4;">2,521,980</td>
+            <td style="color: #FF5A5F;">478,020</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 84.07%; height: 100%; background: #FFB703; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #FFB703; min-width: 48px;">84.07%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Streaming Fraud & FK</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Card ID not found in curated cards / Negative transaction amount</td>
+        </tr>
+        
+        <tr>
+            <td style="font-weight: 600; color: #E0E1DD;">support_tickets</td>
+            <td>25,000</td>
+            <td style="color: #00F5D4;">22,927</td>
+            <td style="color: #FF5A5F;">2,073</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                        <div style="width: 91.71%; height: 100%; background: #00F5D4; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 13px; font-weight: bold; color: #00F5D4; min-width: 48px;">91.71%</span>
+                </div>
+            </td>
+            <td style="font-size: 13px; color: #94D2BD;">Chronology & FK</td>
+            <td style="font-size: 12px; color: #A0AAB2;">Resolved date earlier than opened date / Satisfaction score out of bounds</td>
+        </tr>
+        
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="governance-grid">
+            <div class="gov-card">
+                <h3>Dead Letter Queue (DLQ) Audit Metadata</h3>
+                <ul class="gov-list">
+                    <li><span>•</span> <span><strong>rejection_reason:</strong> Explicit domain reason (e.g., Credit score &lt; 300, Orphan customer FK).</span></li>
+                    <li><span>•</span> <span><strong>validation_stage:</strong> Stage where the record failed (Schema Integrity, Primary Key, Domain Boundary, Accounting Reconciliation).</span></li>
+                    <li><span>•</span> <span><strong>processed_at:</strong> UTC timestamp documenting the exact pipeline execution run.</span></li>
+                    <li><span>•</span> <span><strong>Cloud DLQ Landing:</strong> Saved in AWS S3 at <code>s3://ledgerflow-banking-511492912610/quarantine/</code>.</span></li>
+                </ul>
+            </div>
+            <div class="gov-card">
+                <h3>Cloud Security & Compliance Architecture</h3>
+                <ul class="gov-list">
+                    <li><span>•</span> <span><strong>AWS SSM Parameter Store:</strong> Decryption keys fetched dynamically as KMS-backed <code>SecureString</code>.</span></li>
+                    <li><span>•</span> <span><strong>AES-256 Encrypted Ingestion:</strong> Ingestion payloads protected via password-protected ZIP archives.</span></li>
+                    <li><span>•</span> <span><strong>Zero Data Loss:</strong> 100% of non-compliant records quarantined with full auditability rather than discarded.</span></li>
+                    <li><span>•</span> <span><strong>Topological Ordering:</strong> Dependencies resolved strictly from master lookups down to streaming transaction ledgers.</span></li>
+                </ul>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

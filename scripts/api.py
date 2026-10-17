@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional, Dict, Any
 import sys
@@ -13,6 +14,8 @@ except ImportError:
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DATABASE_URL
+from scripts.dashboard_view import render_dashboard_html
+from scripts.generate_audit_report import generate_audit_report_html
 
 app = FastAPI(
     title="LedgerFlow — Banking Data Warehouse API",
@@ -145,17 +148,32 @@ def get_db():
         return None
 
 @app.get("/")
-def root():
-    return {
-        "status": "online",
-        "service": "LedgerFlow Data Warehouse & AWS Lakehouse API",
-        "docs": "/docs",
-        "redoc": "/redoc",
-        "architecture": "Medallion Lakehouse (S3 Bronze -> S3 Silver -> PostgreSQL Warehouse Marts)",
-        "security": "AWS SSM Parameter Store (/ledgerflow/zip_password) + AES-256 Encrypted Ingestion",
-        "cloud_storage": "AWS S3 (s3://ledgerflow-banking-511492912610/)",
-        "entities": ["/customers", "/accounts", "/transactions", "/loans", "/cards", "/customer-360", "/dashboard"]
-    }
+def root(request: Request, format: Optional[str] = Query(None)):
+    accept_header = request.headers.get("accept", "")
+    if format == "json" or ("application/json" in accept_header and "text/html" not in accept_header):
+        return JSONResponse({
+            "status": "online",
+            "service": "LedgerFlow Data Warehouse & AWS Lakehouse API",
+            "docs": "/docs",
+            "redoc": "/redoc",
+            "dashboard_ui": "/",
+            "audit_report": "/audit-report",
+            "architecture": "Medallion Lakehouse (S3 Bronze -> S3 Silver -> PostgreSQL Warehouse Marts)",
+            "security": "AWS SSM Parameter Store (/ledgerflow/zip_password) + AES-256 Encrypted Ingestion",
+            "cloud_storage": "AWS S3 (s3://ledgerflow-banking-511492912610/)",
+            "entities": ["/customers", "/accounts", "/transactions", "/loans", "/cards", "/customer-360", "/dashboard"]
+        })
+    return HTMLResponse(render_dashboard_html())
+
+@app.get("/dashboard-ui", response_class=HTMLResponse)
+def dashboard_ui():
+    """Serves the interactive Glassmorphic Executive Banking Dashboard."""
+    return HTMLResponse(render_dashboard_html())
+
+@app.get("/audit-report", response_class=HTMLResponse)
+def audit_report():
+    """Serves the comprehensive Data Quality & Dead Letter Queue (DLQ) Audit Report."""
+    return HTMLResponse(generate_audit_report_html())
 
 @app.get("/health")
 def health_check():
