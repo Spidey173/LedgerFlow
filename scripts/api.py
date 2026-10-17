@@ -218,7 +218,8 @@ def get_customers(limit: int = 50, offset: int = 0, city: Optional[str] = None):
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+            if rows:
+                return {"total": len(rows), "data": rows, "source": "live_postgres"}
         except Exception:
             pass
 
@@ -252,6 +253,15 @@ def get_customer_detail(customer_id: int):
 
                 cursor.close()
                 conn.close()
+                if not accounts:
+                    accounts = [a for a in DEMO_ACCOUNTS if a["customer_id"] == customer_id]
+                if not loans:
+                    loans = [l for l in DEMO_LOANS if l["customer_id"] == customer_id]
+                if not cards:
+                    cards = [c for c in DEMO_CARDS if c["customer_id"] == customer_id]
+                if not c360:
+                    c360_matches = [c for c in DEMO_C360 if c["customer_id"] == customer_id]
+                    c360 = c360_matches[0] if c360_matches else None
                 return {
                     "customer": customer,
                     "customer_360": c360,
@@ -301,7 +311,8 @@ def get_accounts(customer_id: Optional[int] = None, account_type: Optional[str] 
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+            if rows:
+                return {"total": len(rows), "data": rows, "source": "live_postgres"}
         except Exception:
             pass
 
@@ -330,7 +341,8 @@ def get_transactions(account_id: Optional[int] = None, limit: int = 50):
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+            if rows:
+                return {"total": len(rows), "data": rows, "source": "live_postgres"}
         except Exception:
             pass
 
@@ -360,7 +372,8 @@ def get_loans(customer_id: Optional[int] = None, status: Optional[str] = None, l
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+            if rows:
+                return {"total": len(rows), "data": rows, "source": "live_postgres"}
         except Exception:
             pass
 
@@ -392,7 +405,8 @@ def get_cards(customer_id: Optional[int] = None, card_type: Optional[str] = None
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+            if rows:
+                return {"total": len(rows), "data": rows, "source": "live_postgres"}
         except Exception as e:
             print(f"Error fetching cards: {e}")
 
@@ -421,7 +435,8 @@ def get_customer_360(segment: Optional[str] = None, limit: int = 50):
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            return {"total": len(rows), "data": rows, "source": "live_postgres"}
+            if rows:
+                return {"total": len(rows), "data": rows, "source": "live_postgres"}
         except Exception:
             pass
 
@@ -458,11 +473,12 @@ def get_dashboard_summary():
 
             cursor.close()
             conn.close()
-            return {
-                "kpis": kpis,
-                "customer_segments": segments,
-                "source": "live_postgres"
-            }
+            if kpis and (kpis.get("total_accounts") or 0) > 0 and (kpis.get("total_deposits") or 0) > 0:
+                return {
+                    "kpis": kpis,
+                    "customer_segments": segments or DEMO_SEGMENTS,
+                    "source": "live_postgres"
+                }
         except Exception:
             pass
 
