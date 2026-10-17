@@ -48,11 +48,19 @@ def render_dashboard_html() -> str:
         .top-navbar {
             background-color: var(--red-primary);
             color: #FFFFFF;
-            padding: 14px 28px;
+            padding: 12px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            width: 100%;
+        }
+
+        .nav-container {
+            width: 95%;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 0 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         }
 
         .brand-section {
@@ -116,9 +124,10 @@ def render_dashboard_html() -> str:
 
         /* Main Container */
         .main-container {
-            max-width: 1280px;
-            margin: 28px auto;
-            padding: 0 24px 48px;
+            width: 95%;
+            max-width: 1800px;
+            margin: 20px auto;
+            padding: 0 8px 48px;
         }
 
         /* Platform Introduction Banner */
@@ -128,7 +137,7 @@ def render_dashboard_html() -> str:
             border-left: 5px solid var(--red-primary);
             border-radius: 6px;
             padding: 20px 24px;
-            margin-bottom: 24px;
+            margin-bottom: 22px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -172,16 +181,36 @@ def render_dashboard_html() -> str:
         /* KPI Cards Grid */
         .kpi-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        @media (max-width: 1380px) {
+            .kpi-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .kpi-card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            padding: 18px 20px;
+            padding: 16px 18px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
             transition: border-color 0.15s ease;
         }
@@ -191,16 +220,16 @@ def render_dashboard_html() -> str:
         }
 
         .kpi-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.05em;
             margin-bottom: 6px;
         }
 
         .kpi-number {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 700;
             color: var(--text-title);
             font-family: 'IBM Plex Mono', monospace;
@@ -220,12 +249,12 @@ def render_dashboard_html() -> str:
         /* Charts Section */
         .charts-row {
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 24px;
+            grid-template-columns: 2.1fr 1fr;
+            gap: 18px;
+            margin-bottom: 22px;
         }
 
-        @media (max-width: 960px) {
+        @media (max-width: 1100px) {
             .charts-row {
                 grid-template-columns: 1fr;
             }
@@ -261,7 +290,7 @@ def render_dashboard_html() -> str:
 
         .chart-container {
             position: relative;
-            height: 270px;
+            height: 330px;
             width: 100%;
         }
 
@@ -271,22 +300,34 @@ def render_dashboard_html() -> str:
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 20px 24px;
-            margin-bottom: 24px;
+            margin-bottom: 22px;
         }
 
         .flow-headline {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--text-title);
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
 
         .flow-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(5, 1fr);
             gap: 12px;
+        }
+
+        @media (max-width: 1100px) {
+            .flow-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .flow-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .flow-box {
@@ -419,17 +460,19 @@ def render_dashboard_html() -> str:
 
     <!-- Red Brand Header -->
     <header class="top-navbar">
-        <div class="brand-section">
-            <div class="brand-logo">
-                <span>🏦</span> LedgerFlow
+        <div class="nav-container">
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <span>🏦</span> LedgerFlow
+                </div>
+                <span class="brand-tag">Banking Data Warehouse</span>
             </div>
-            <span class="brand-tag">Banking Data Warehouse</span>
-        </div>
-        <div class="nav-links">
-            <a href="/audit-report" class="nav-btn">📑 Quality Audit Report</a>
-            <a href="/docs" class="nav-btn nav-btn-white">⚡ Swagger API Docs</a>
-            <a href="https://github.com/Spidey173/LedgerFlow" target="_blank" class="nav-btn">🐙 GitHub</a>
-            <a href="/?format=json" class="nav-btn">💾 JSON</a>
+            <div class="nav-links">
+                <a href="/audit-report" class="nav-btn">📑 Quality Audit Report</a>
+                <a href="/docs" class="nav-btn nav-btn-white">⚡ Swagger API Docs</a>
+                <a href="https://github.com/Spidey173/LedgerFlow" target="_blank" class="nav-btn">🐙 GitHub</a>
+                <a href="/?format=json" class="nav-btn">💾 JSON</a>
+            </div>
         </div>
     </header>
 

@@ -86,11 +86,18 @@ def generate_audit_report_html() -> str:
         .top-navbar {{
             background-color: var(--red-primary);
             color: #FFFFFF;
-            padding: 14px 28px;
+            padding: 12px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            width: 100%;
+        }}
+        .nav-container {{
+            width: 95%;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 0 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         }}
         .brand-section {{
             display: flex;
@@ -123,9 +130,10 @@ def generate_audit_report_html() -> str:
             border: 1px solid #FFFFFF;
         }}
         .main-container {{
-            max-width: 1280px;
-            margin: 28px auto;
-            padding: 0 24px;
+            width: 95%;
+            max-width: 1800px;
+            margin: 20px auto;
+            padding: 0 8px 48px;
         }}
         .page-header {{
             background: #FFFFFF;
@@ -133,7 +141,7 @@ def generate_audit_report_html() -> str:
             border-left: 5px solid var(--red-primary);
             border-radius: 6px;
             padding: 20px 24px;
-            margin-bottom: 24px;
+            margin-bottom: 22px;
         }}
         .page-header h1 {{
             font-size: 22px;
@@ -147,9 +155,19 @@ def generate_audit_report_html() -> str:
         }}
         .kpi-row {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 22px;
+        }}
+        @media (max-width: 1024px) {{
+            .kpi-row {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
+        @media (max-width: 500px) {{
+            .kpi-row {{
+                grid-template-columns: 1fr;
+            }}
         }}
         .kpi-box {{
             background: #FFFFFF;
@@ -260,13 +278,15 @@ def generate_audit_report_html() -> str:
 </head>
 <body>
     <header class="top-navbar">
-        <div class="brand-section">
-            <div class="brand-logo">🏦 LedgerFlow</div>
-            <span style="font-size: 11px; opacity: 0.85;">Governance & Audit Trail</span>
-        </div>
-        <div class="nav-links">
-            <a href="/" class="nav-btn nav-btn-white">Executive Dashboard</a>
-            <a href="/docs" class="nav-btn">Swagger API Docs</a>
+        <div class="nav-container">
+            <div class="brand-section">
+                <div class="brand-logo">🏦 LedgerFlow</div>
+                <span style="font-size: 11px; opacity: 0.85;">Governance & Audit Trail</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-btn nav-btn-white">Executive Dashboard</a>
+                <a href="/docs" class="nav-btn">Swagger API Docs</a>
+            </div>
         </div>
     </header>
 
