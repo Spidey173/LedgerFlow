@@ -25,10 +25,22 @@ echo -e "${BOLD}${BLUE}=========================================================
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${PROJECT_ROOT}"
 
+# Auto-detect Python executable (prefer local venv if available)
+if [ -f "./venv/bin/python" ]; then
+    PYTHON_BIN="./venv/bin/python"
+    PYTEST_BIN="./venv/bin/pytest"
+    UVICORN_BIN="./venv/bin/uvicorn"
+else
+    PYTHON_BIN="python3"
+    PYTEST_BIN="pytest"
+    UVICORN_BIN="uvicorn"
+fi
+
 # Optional arguments
 RUN_API=false
 TEST_ONLY=false
 PIPELINE_ONLY=false
+RUN_AWS=false
 
 for arg in "$@"; do
     case $arg in
@@ -41,10 +53,14 @@ for arg in "$@"; do
         --pipeline-only)
             PIPELINE_ONLY=true
             ;;
+        --aws)
+            RUN_AWS=true
+            ;;
         --help|-h)
             echo "Usage: ./run_all.sh [OPTIONS]"
             echo ""
             echo "Options:"
+            echo "  --aws            Execute AWS S3 Ingestion & Glue ETL Pipeline"
             echo "  --api            Start FastAPI server after pipeline execution"
             echo "  --test-only      Run pytest test suite only"
             echo "  --pipeline-only  Run 10-dataset ETL pipeline only without tests"
@@ -55,9 +71,9 @@ for arg in "$@"; do
 done
 
 # Step 1: Run Validator Unit Tests
-if [ "${PIPELINE_ONLY}" = false ]; then
+if [ "${PIPELINE_ONLY}" = false ] && [ "${RUN_AWS}" = false ]; then
     echo -e "\n${BOLD}${CYAN}[Step 1/4] Running Validator Unit Tests (Pytest)...${RESET}"
-    pytest -v tests/test_validation.py
+    ${PYTEST_BIN} -v tests/test_validation.py
     echo -e "${GREEN}✓ All validator unit tests passed successfully!${RESET}"
 fi
 
@@ -66,15 +82,30 @@ if [ "${TEST_ONLY}" = true ]; then
     exit 0
 fi
 
+# Branch: If --aws is specified, execute the AWS Cloud Pipeline
+if [ "${RUN_AWS}" = true ]; then
+    echo -e "\n${BOLD}${CYAN}[AWS Cloud Pipeline] Executing S3 Ingestion, Glue ETL, and Lakehouse Processing...${RESET}"
+    ${PYTHON_BIN} cloud_aws/run_cloud_pipeline.py --flink
+    echo -e "\n${BOLD}${GREEN}====================================================================${RESET}"
+    echo -e "${BOLD}${GREEN}   AWS CLOUD PIPELINE COMPLETED SUCCESSFULLY!                       ${RESET}"
+    echo -e "${BOLD}${GREEN}====================================================================${RESET}"
+    echo -e "• S3 Data Lake (Bronze):  ${GREEN}s3://${S3_BUCKET_NAME:-ledgerflow-banking-511492912610}/bronze/raw/${RESET}"
+    echo -e "• S3 Curated (Silver)  :  ${GREEN}s3://${S3_BUCKET_NAME:-ledgerflow-banking-511492912610}/silver/curated/${RESET}"
+    echo -e "• S3 Quarantined (DLQ) :  ${YELLOW}s3://${S3_BUCKET_NAME:-ledgerflow-banking-511492912610}/quarantine/${RESET}"
+    echo -e "• Distributed Engine   :  ${GREEN}AWS Glue (PySpark)${RESET}"
+    echo -e "• Streaming Engine     :  ${GREEN}Apache Flink (Transaction Velocity / Fraud Checks)${RESET}"
+    exit 0
+fi
+
 # Step 2: Run End-to-End Banking Pipeline Orchestrator (10 Datasets)
 echo -e "\n${BOLD}${CYAN}[Step 2/4] Executing 10-Dataset Medallion Pipeline (Raw -> Curated & DLQ)...${RESET}"
-python3 scripts/run_pipeline.py
+${PYTHON_BIN} scripts/run_pipeline.py
 echo -e "${GREEN}✓ Master Pipeline completed! Curated data and audited DLQ created.${RESET}"
 
 # Step 3: Check PostgreSQL connection and perform warehouse load if reachable
 echo -e "\n${BOLD}${CYAN}[Step 3/4] Checking PostgreSQL Data Warehouse Connection...${RESET}"
 DB_AVAILABLE=false
-if python3 -c "
+if ${PYTHON_BIN} -c "
 import psycopg2, os, sys
 host = os.getenv('DB_HOST', 'localhost')
 port = os.getenv('DB_PORT', '5432')
@@ -94,7 +125,7 @@ fi
 if [ "${DB_AVAILABLE}" = true ]; then
     echo -e "${GREEN}✓ PostgreSQL is online at ${DB_HOST:-localhost}:${DB_PORT:-5432}/${DB_NAME:-bank_dwh}!${RESET}"
     echo -e "Loading curated datasets into warehouse via bulk streaming COPY..."
-    python3 scripts/load_postgres.py
+    ${PYTHON_BIN} scripts/load_postgres.py
     
     # Materialize analytics marts if psql is present
     if command -v psql &> /dev/null; then
@@ -122,7 +153,7 @@ echo -e "• Logs:        ${BLUE}logs/pipeline_*.log${RESET}"
 
 if [ "${RUN_API}" = true ]; then
     echo -e "\n${BOLD}${CYAN}Starting FastAPI live REST service...${RESET}"
-    uvicorn scripts.api:app --host 0.0.0.0 --port 8000
+    ${UVICORN_BIN} scripts.api:app --host 0.0.0.0 --port 8000
 else
     echo -e "\n${BOLD}Next Steps:${RESET}"
     echo -e "  1. Start REST API:         ${CYAN}uvicorn scripts.api:app --host 0.0.0.0 --port 8000${RESET}"

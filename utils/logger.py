@@ -21,6 +21,7 @@ def get_logger(name: str) -> logging.Logger:
         # Console Handler
         ch = logging.StreamHandler()
         ch.setFormatter(formatter)
+        logger.addHandler(ch)
     return logger
 
 def log_pipeline_summary(pipeline_name: str, start_time: datetime, end_time: datetime,

@@ -1,23 +1,26 @@
-# LedgerFlow — Banking ETL Pipeline & PostgreSQL Warehouse
+# LedgerFlow — Banking Data Engineering Pipeline & PostgreSQL Warehouse
 
 [![API Docs / Interactive Schema](https://img.shields.io/badge/API%20Docs-Interactive%20Schema-009688?style=for-the-badge&logo=fastapi)](https://ledgerflow17.vercel.app/docs)
 [![Live Deployment](https://img.shields.io/badge/Live%20API-ledgerflow17.vercel.app-blue?style=for-the-badge&logo=vercel)](https://ledgerflow17.vercel.app/)
 [![Database](https://img.shields.io/badge/Database-Neon%20PostgreSQL-00E599?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech)
+[![AWS S3](https://img.shields.io/badge/AWS%20S3-Cloud%20Data%20Lake-569A31?style=for-the-badge&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
 [![Tests](https://img.shields.io/badge/Pytest-41%20Passed-brightgreen?style=for-the-badge&logo=pytest)](tests/test_validation.py)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](docker-compose.yml)
 
 > 🌐 **Live Interactive Schema & Swagger UI**: **[https://ledgerflow17.vercel.app/docs](https://ledgerflow17.vercel.app/docs)**  
 > 📊 **Live Executive Dashboard API**: **[https://ledgerflow17.vercel.app/dashboard](https://ledgerflow17.vercel.app/dashboard)**  
-> ⚡ **Cloud Warehouse**: Live Neon Serverless PostgreSQL cluster running ~1.9M curated & dimensional warehouse records.
+> ⚡ **Cloud Warehouse**: Live Neon Serverless PostgreSQL cluster running ~1.9M curated & dimensional warehouse records.  
+> ☁️ **AWS S3 Lakehouse**: Cloud object storage integration separating raw data (Bronze), clean data (Silver), and quarantined errors (DLQ).
 
-**LedgerFlow** is an end-to-end banking data pipeline and relational data warehouse implemented in Python, PostgreSQL, and FastAPI. It processes 10 relational banking datasets (~5.8M raw records) with automated data quality checks, referential integrity validation, a Dead Letter Queue (DLQ) for auditability, high-speed PostgreSQL bulk ingestion via `COPY`, and analytical marts for reporting and APIs.
+**LedgerFlow** is an end-to-end banking data pipeline and relational data warehouse engineered in Python, PostgreSQL, and AWS S3. It processes 10 relational banking datasets (~5.8M raw records) with automated data quality checks, topological referential integrity validation, an audited Dead Letter Queue (DLQ), high-speed PostgreSQL bulk ingestion via `COPY`, and analytical marts served via FastAPI.
 
 ---
 
 ## ⚡ Quickstart
 
-You can test and execute the end-to-end pipeline locally with a single script:
+You can test and execute the end-to-end pipeline with a single command:
 
-### Option A: Local CLI Execution
+### Option A: Local CLI Execution (Default)
 ```bash
 ./run_all.sh
 ```
@@ -31,11 +34,17 @@ make run
 > 3. Connects to PostgreSQL, loads curated data via `COPY`, and refreshes analytical tables (when database connection is available).
 > 4. Generates an execution summary report showing processed counts and runtimes.
 
-### Option B: Dockerized Setup
+### Option B: AWS Cloud Lakehouse Execution
+```bash
+./run_all.sh --aws
+```
+*Uploads raw datasets to AWS S3 (`s3://.../bronze/raw/`), runs data quality cleaning into S3 Silver, routes bad records to S3 DLQ, and loads into PostgreSQL.*
+
+### Option C: Dockerized Setup
 ```bash
 docker-compose up --build -d
 ```
-Spins up PostgreSQL 15 and the FastAPI service with auto-initialized schemas and health checks.
+*Spins up PostgreSQL 15 and the FastAPI service with auto-initialized schemas and health checks.*
 
 ---
 
@@ -90,6 +99,35 @@ flowchart TD
     PG --> M2
     PG --> M3
     M1 & M2 & M3 --> API
+```
+
+### AWS Cloud Lakehouse & Streaming Extension
+
+```mermaid
+flowchart LR
+    subgraph S3["AWS S3 Cloud Data Lake"]
+        B["Bronze Layer\ns3://.../bronze/raw/*.csv"]
+        S["Silver Layer\ns3://.../silver/curated/*.csv"]
+        Q["Quarantined DLQ\ns3://.../quarantine/*_bad.csv"]
+    end
+
+    subgraph Compute["Distributed & Real-Time Processing"]
+        G["AWS Glue (PySpark ETL)\n- Serverless Distributed Compute\n- FK Referential Integrity\n- Data Quality Rules"]
+        F["Apache Flink Stream Processor\n- 5-Min Sliding Windows\n- Velocity & High-Value Anomaly Detection"]
+    end
+
+    subgraph Serving["Storage & Serving"]
+        DB[("PostgreSQL / AWS RDS\nWarehouse")]
+        API2["FastAPI Analytical Layer"]
+    end
+
+    B --> G
+    G -->|Clean Curated| S
+    G -->|Bad Records| Q
+    S -->|Bulk COPY / JDBC| DB
+    B -->|Streaming Ingestion| F
+    F -->|Enriched & Anomaly Flagged| DB
+    DB --> API2
 ```
 
 ---
@@ -165,6 +203,11 @@ ledgerflow/
 ├── requirements.txt                   # Complete project dependencies
 ├── Dockerfile                         # Container image definition
 ├── docker-compose.yml                 # PostgreSQL 15 + FastAPI container stack
+├── cloud_aws/
+│   ├── s3_uploader.py                 # AWS S3 Data Lake Ingestion (Bronze)
+│   ├── glue_banking_etl.py            # AWS Glue / PySpark ETL (Silver & DB Loader)
+│   ├── flink_transaction_processor.py # Apache Flink Real-Time Fraud Heuristics
+│   └── run_cloud_pipeline.py          # End-to-End Cloud Lakehouse Orchestrator
 ├── dags/
 │   └── banking_pipeline_dag.py        # Apache Airflow scheduled DAG definition
 ├── data/
@@ -295,8 +338,13 @@ Unified **Customer 360** profile containing linked accounts, loans, credit/debit
 | Command | Action |
 | :--- | :--- |
 | **`./run_all.sh`** | **One-command full run**: executes tests, 10 ETL pipelines, and DB load. |
+| **`./run_all.sh --aws`** | **AWS Cloud Lakehouse Run**: S3 Ingestion, Glue ETL, DLQ routing, and DB load. |
 | **`./run_all.sh --test-only`** | Runs only the 41 Pytest validator test suite. |
 | **`./run_all.sh --api`** | Runs full pipeline and immediately spins up FastAPI server. |
+| **`make aws-upload`** | Ingests raw banking CSVs to AWS S3 Data Lake (`bronze/raw/`). |
+| **`make aws-glue`** | Runs AWS Glue (PySpark) ETL job & writes to S3 Silver and PostgreSQL. |
+| **`make aws-flink`** | Runs Apache Flink real-time streaming transaction & fraud detection job. |
+| **`make aws-pipeline`** | Runs complete End-to-End AWS Lakehouse & Streaming pipeline. |
 | **`make test`** | Runs Pytest with verbose test descriptions. |
 | **`make etl`** | Runs the 10-dataset master ETL pipeline. |
 | **`make load`** | Loads curated CSVs into PostgreSQL via COPY streaming. |

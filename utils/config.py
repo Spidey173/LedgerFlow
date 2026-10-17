@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if present
+load_dotenv()
 
 # Root directories
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -7,6 +11,12 @@ RAW_DIR = os.path.join(DATA_DIR, "raw")
 CURATED_DIR = os.path.join(DATA_DIR, "curated")
 BAD_RECORDS_DIR = os.path.join(DATA_DIR, "bad_records")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
+
+# AWS Configuration
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-south-1")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "ledgerflow-banking-511492912610")
 
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
