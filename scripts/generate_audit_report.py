@@ -1,8 +1,7 @@
 """
 LedgerFlow — Data Quality & Dead Letter Queue (DLQ) Audit Report Generator
 --------------------------------------------------------------------------
-Compiles validation statistics, rejection categorizations, and data governance
-audit metrics across all 10 banking datasets into an executive HTML report.
+Clean, non-AI corporate red banking style for executive compliance & governance.
 """
 
 import os
@@ -31,32 +30,31 @@ TOTAL_BAD = sum(d["bad"] for d in AUDIT_DATASETS)
 OVERALL_PASS_RATE = round((TOTAL_CURATED / TOTAL_RAW) * 100, 2)
 
 def generate_audit_report_html() -> str:
-    """Generates a responsive executive HTML Data Quality & DLQ Audit Report."""
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     
     rows_html = ""
     for d in AUDIT_DATASETS:
-        status_color = "#00F5D4" if d["pass_rate"] >= 90 else "#FFB703"
+        bar_color = "#2B8A3E" if d["pass_rate"] >= 90 else "#D97706"
         rows_html += f"""
         <tr>
-            <td style="font-weight: 600; color: #E0E1DD;">{d['name']}</td>
+            <td style="font-weight: 600; color: #1E293B;">{d['name']}</td>
             <td>{d['raw']:,}</td>
-            <td style="color: #00F5D4;">{d['curated']:,}</td>
-            <td style="color: #FF5A5F;">{d['bad']:,}</td>
+            <td style="color: #2B8A3E; font-weight: 600;">{d['curated']:,}</td>
+            <td style="color: #A61C1C; font-weight: 600;">{d['bad']:,}</td>
             <td>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
-                        <div style="width: {d['pass_rate']}%; height: 100%; background: {status_color}; border-radius: 4px;"></div>
+                    <div style="flex: 1; height: 7px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {d['pass_rate']}%; height: 100%; background: {bar_color}; border-radius: 4px;"></div>
                     </div>
-                    <span style="font-size: 13px; font-weight: bold; color: {status_color}; min-width: 48px;">{d['pass_rate']}%</span>
+                    <span style="font-size: 12px; font-weight: 600; color: {bar_color}; min-width: 44px;">{d['pass_rate']}%</span>
                 </div>
             </td>
-            <td style="font-size: 13px; color: #94D2BD;">{d['stage']}</td>
-            <td style="font-size: 12px; color: #A0AAB2;">{d['top_reason']}</td>
+            <td style="font-size: 12px; color: #475569;">{d['stage']}</td>
+            <td style="font-size: 12px; color: #64748B;">{d['top_reason']}</td>
         </tr>
         """
 
-    html = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -64,143 +62,148 @@ def generate_audit_report_html() -> str:
     <title>LedgerFlow — Data Quality & DLQ Audit Report</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {{
-            --bg: #0A0F1D;
-            --surface: #131B2E;
-            --surface-border: #1E293B;
-            --text-main: #F8FAFC;
-            --text-muted: #94A3B8;
-            --accent-green: #10B981;
-            --accent-cyan: #06B6D4;
-            --accent-red: #EF4444;
-            --accent-yellow: #F59E0B;
-            --accent-blue: #3B82F6;
+            --red-primary: #A61C1C;
+            --red-dark: #7A1212;
+            --bg-page: #F5F6F8;
+            --bg-card: #FFFFFF;
+            --text-title: #1A1F2C;
+            --text-body: #4A5568;
+            --text-muted: #718096;
+            --border-color: #E2E8F0;
+            --green: #2B8A3E;
         }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            padding: 32px 20px;
-            min-height: 100vh;
+            font-family: 'IBM Plex Sans', 'Segoe UI', -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-body);
+            line-height: 1.5;
+            padding-bottom: 48px;
         }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-        }}
-        .header {{
+        .top-navbar {{
+            background-color: var(--red-primary);
+            color: #FFFFFF;
+            padding: 14px 28px;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 28px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid var(--surface-border);
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         }}
-        .title-group h1 {{
-            font-size: 28px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #38BDF8, #818CF8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .brand-section {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }}
-        .title-group p {{
-            color: var(--text-muted);
-            font-size: 14px;
-            margin-top: 6px;
+        .brand-logo {{
+            font-weight: 700;
+            font-size: 18px;
+            color: #FFFFFF;
         }}
-        .nav-links a {{
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 8px;
+        .nav-links {{
+            display: flex;
+            gap: 10px;
+        }}
+        .nav-btn {{
+            background-color: rgba(255, 255, 255, 0.12);
+            color: #FFFFFF;
+            padding: 6px 14px;
+            border-radius: 4px;
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
-            transition: all 0.2s;
-            margin-left: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }}
-        .btn-primary {{
-            background: #2563EB;
-            color: #fff;
+        .nav-btn:hover {{ background-color: rgba(255, 255, 255, 0.25); }}
+        .nav-btn-white {{
+            background-color: #FFFFFF;
+            color: var(--red-primary);
+            border: 1px solid #FFFFFF;
         }}
-        .btn-primary:hover {{ background: #1D4ED8; }}
-        .btn-secondary {{
-            background: var(--surface);
-            color: var(--text-main);
-            border: 1px solid var(--surface-border);
+        .main-container {{
+            max-width: 1280px;
+            margin: 28px auto;
+            padding: 0 24px;
         }}
-        .btn-secondary:hover {{ border-color: #475569; }}
-        .kpi-grid {{
+        .page-header {{
+            background: #FFFFFF;
+            border: 1px solid var(--border-color);
+            border-left: 5px solid var(--red-primary);
+            border-radius: 6px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }}
+        .page-header h1 {{
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 4px;
+        }}
+        .page-header p {{
+            font-size: 14px;
+            color: var(--text-muted);
+        }}
+        .kpi-row {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
             gap: 16px;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }}
-        .kpi-card {{
-            background: var(--surface);
-            border: 1px solid var(--surface-border);
-            border-radius: 12px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
+        .kpi-box {{
+            background: #FFFFFF;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 18px 20px;
         }}
-        .kpi-card::before {{
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 3px;
-        }}
-        .kpi-green::before {{ background: var(--accent-green); }}
-        .kpi-cyan::before {{ background: var(--accent-cyan); }}
-        .kpi-red::before {{ background: var(--accent-red); }}
-        .kpi-blue::before {{ background: var(--accent-blue); }}
-        .kpi-title {{
-            font-size: 12px;
+        .kpi-box-label {{
+            font-size: 11px;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: var(--text-muted);
-            margin-bottom: 8px;
-            font-weight: 600;
+            margin-bottom: 4px;
         }}
-        .kpi-value {{
+        .kpi-box-val {{
             font-size: 26px;
-            font-weight: 800;
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--text-title);
+            font-family: 'IBM Plex Mono', monospace;
         }}
-        .kpi-sub {{
+        .kpi-box-sub {{
             font-size: 12px;
             color: var(--text-muted);
-            margin-top: 6px;
+            margin-top: 4px;
         }}
         .table-card {{
-            background: var(--surface);
-            border: 1px solid var(--surface-border);
-            border-radius: 12px;
+            background: #FFFFFF;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
             overflow: hidden;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }}
-        .table-card-header {{
+        .table-card-head {{
             padding: 16px 20px;
-            border-bottom: 1px solid var(--surface-border);
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }}
-        .table-card-header h2 {{
-            font-size: 16px;
+        .table-card-head h2 {{
+            font-size: 15px;
             font-weight: 700;
+            color: var(--text-title);
         }}
-        .badge {{
+        .badge-verified {{
             padding: 4px 10px;
-            border-radius: 20px;
+            background: #EBFBEE;
+            border: 1px solid #D3F9D8;
+            color: var(--green);
             font-size: 11px;
-            font-weight: 700;
-            background: rgba(16, 185, 129, 0.15);
-            color: var(--accent-green);
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            font-weight: 600;
+            border-radius: 4px;
         }}
         table {{
             width: 100%;
@@ -208,92 +211,98 @@ def generate_audit_report_html() -> str:
             text-align: left;
         }}
         th {{
-            background: rgba(15, 23, 42, 0.6);
+            background: #F8FAFC;
             color: var(--text-muted);
-            font-size: 11px;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--surface-border);
+            letter-spacing: 0.04em;
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--border-color);
         }}
         td {{
-            padding: 14px 16px;
+            padding: 12px 16px;
             font-size: 13px;
-            border-bottom: 1px solid rgba(30, 41, 59, 0.5);
-            font-family: 'JetBrains Mono', monospace;
+            border-bottom: 1px solid #F1F5F9;
+            font-family: 'IBM Plex Mono', monospace;
         }}
         tr:hover td {{
-            background: rgba(255, 255, 255, 0.02);
+            background-color: #F8FAFC;
         }}
-        .governance-grid {{
+        .info-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 20px;
+            gap: 16px;
         }}
-        .gov-card {{
-            background: var(--surface);
-            border: 1px solid var(--surface-border);
-            border-radius: 12px;
+        .info-card {{
+            background: #FFFFFF;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
             padding: 20px;
         }}
-        .gov-card h3 {{
-            font-size: 15px;
+        .info-card h3 {{
+            font-size: 14px;
             font-weight: 700;
-            margin-bottom: 14px;
-            color: #38BDF8;
+            color: var(--red-primary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }}
-        .gov-list li {{
-            list-style: none;
-            margin-bottom: 10px;
+        .info-card ul {{
+            padding-left: 18px;
+        }}
+        .info-card li {{
             font-size: 13px;
-            color: var(--text-muted);
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
+            color: var(--text-body);
+            margin-bottom: 8px;
         }}
-        .gov-list li strong {{ color: var(--text-main); }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <div class="title-group">
-                <h1>LedgerFlow — Data Quality & DLQ Audit Report</h1>
-                <p>Enterprise Data Reliability, Referential Integrity, and Dead Letter Queue Audit Trail</p>
-            </div>
-            <div class="nav-links">
-                <a href="/" class="btn-secondary">Executive Dashboard</a>
-                <a href="/docs" class="btn-primary">Interactive Swagger Docs</a>
-            </div>
-        </header>
+    <header class="top-navbar">
+        <div class="brand-section">
+            <div class="brand-logo">🏦 LedgerFlow</div>
+            <span style="font-size: 11px; opacity: 0.85;">Governance & Audit Trail</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-btn nav-btn-white">Executive Dashboard</a>
+            <a href="/docs" class="nav-btn">Swagger API Docs</a>
+        </div>
+    </header>
 
-        <section class="kpi-grid">
-            <div class="kpi-card kpi-blue">
-                <div class="kpi-title">Total Records Ingested</div>
-                <div class="kpi-value">{TOTAL_RAW:,}</div>
-                <div class="kpi-sub">10 Relational Datasets</div>
-            </div>
-            <div class="kpi-card kpi-green">
-                <div class="kpi-title">Curated Clean Records</div>
-                <div class="kpi-value">{TOTAL_CURATED:,}</div>
-                <div class="kpi-sub">Committed to Warehouse</div>
-            </div>
-            <div class="kpi-card kpi-red">
-                <div class="kpi-title">Quarantined (DLQ)</div>
-                <div class="kpi-value">{TOTAL_BAD:,}</div>
-                <div class="kpi-sub">Audited & Isolated</div>
-            </div>
-            <div class="kpi-card kpi-cyan">
-                <div class="kpi-title">Overall Pass Rate</div>
-                <div class="kpi-value">{OVERALL_PASS_RATE}%</div>
-                <div class="kpi-sub">Data Quality Integrity</div>
-            </div>
-        </section>
+    <div class="main-container">
+        <div class="page-header">
+            <h1>Data Quality & Dead Letter Queue (DLQ) Audit Report</h1>
+            <p>Verification metrics, rejection root cause analysis, and referential constraints across 5,868,950 banking records.</p>
+        </div>
 
-        <section class="table-card">
-            <div class="table-card-header">
-                <h2>Entity-Level Data Quality & Quarantine Breakdown (10 Banking Datasets)</h2>
-                <span class="badge">41 Pytest Validators Verified</span>
+        <div class="kpi-row">
+            <div class="kpi-box">
+                <div class="kpi-box-label">Total Ingested Records</div>
+                <div class="kpi-box-val">{TOTAL_RAW:,}</div>
+                <div class="kpi-box-sub">10 Relational Datasets</div>
+            </div>
+            <div class="kpi-box">
+                <div class="kpi-box-label">Curated Clean Records</div>
+                <div class="kpi-box-val" style="color: var(--green);">{TOTAL_CURATED:,}</div>
+                <div class="kpi-box-sub">Loaded to Warehouse</div>
+            </div>
+            <div class="kpi-box">
+                <div class="kpi-box-label">Quarantined (DLQ)</div>
+                <div class="kpi-box-val" style="color: var(--red-primary);">{TOTAL_BAD:,}</div>
+                <div class="kpi-box-sub">Isolated with Reason</div>
+            </div>
+            <div class="kpi-box">
+                <div class="kpi-box-label">Overall Pass Rate</div>
+                <div class="kpi-box-val">{OVERALL_PASS_RATE}%</div>
+                <div class="kpi-box-sub">Data Quality Integrity</div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-card-head">
+                <h2>Entity-Level Data Quality & Quarantine Breakdown</h2>
+                <span class="badge-verified">41 Pytest Rules Verified</span>
             </div>
             <div style="overflow-x: auto;">
                 <table>
@@ -302,10 +311,10 @@ def generate_audit_report_html() -> str:
                             <th>Dataset</th>
                             <th>Raw Ingested</th>
                             <th>Curated Clean</th>
-                            <th>Quarantined (DLQ)</th>
-                            <th style="min-width: 180px;">Pass Rate</th>
+                            <th>Quarantined</th>
+                            <th style="min-width: 170px;">Pass Rate</th>
                             <th>Validation Stage</th>
-                            <th>Top Rejection Root Cause</th>
+                            <th>Primary Quarantine Root Cause</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -313,33 +322,32 @@ def generate_audit_report_html() -> str:
                     </tbody>
                 </table>
             </div>
-        </section>
+        </div>
 
-        <section class="governance-grid">
-            <div class="gov-card">
-                <h3>Dead Letter Queue (DLQ) Audit Metadata</h3>
-                <ul class="gov-list">
-                    <li><span>•</span> <span><strong>rejection_reason:</strong> Explicit domain reason (e.g., Credit score &lt; 300, Orphan customer FK).</span></li>
-                    <li><span>•</span> <span><strong>validation_stage:</strong> Stage where the record failed (Schema Integrity, Primary Key, Domain Boundary, Accounting Reconciliation).</span></li>
-                    <li><span>•</span> <span><strong>processed_at:</strong> UTC timestamp documenting the exact pipeline execution run.</span></li>
-                    <li><span>•</span> <span><strong>Cloud DLQ Landing:</strong> Saved in AWS S3 at <code>s3://ledgerflow-banking-511492912610/quarantine/</code>.</span></li>
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>Dead Letter Queue (DLQ) Governance</h3>
+                <ul>
+                    <li><strong>rejection_reason:</strong> Explicit business logic failure reason (e.g., Credit score out of bounds, Orphan customer FK).</li>
+                    <li><strong>validation_stage:</strong> Identifies failing stage (Schema Integrity, Primary Key, Domain Boundary, Accounting Reconciliation).</li>
+                    <li><strong>processed_at:</strong> UTC execution timestamp documenting batch origin.</li>
+                    <li><strong>Storage:</strong> Isolated in AWS S3 at <code>s3://ledgerflow-banking-511492912610/quarantine/</code>.</li>
                 </ul>
             </div>
-            <div class="gov-card">
-                <h3>Cloud Security & Compliance Architecture</h3>
-                <ul class="gov-list">
-                    <li><span>•</span> <span><strong>AWS SSM Parameter Store:</strong> Decryption keys fetched dynamically as KMS-backed <code>SecureString</code>.</span></li>
-                    <li><span>•</span> <span><strong>AES-256 Encrypted Ingestion:</strong> Ingestion payloads protected via password-protected ZIP archives.</span></li>
-                    <li><span>•</span> <span><strong>Zero Data Loss:</strong> 100% of non-compliant records quarantined with full auditability rather than discarded.</span></li>
-                    <li><span>•</span> <span><strong>Topological Ordering:</strong> Dependencies resolved strictly from master lookups down to streaming transaction ledgers.</span></li>
+            <div class="info-card">
+                <h3>Enterprise Security & Compliance</h3>
+                <ul>
+                    <li><strong>AWS SSM Parameter Store:</strong> Decryption keys fetched dynamically via KMS-encrypted <code>SecureString</code>.</li>
+                    <li><strong>AES-256 Encrypted Ingestion:</strong> Raw payloads protected using password-protected ZIP archives.</li>
+                    <li><strong>Zero Data Loss:</strong> Corrupted or non-compliant records quarantined rather than silently discarded.</li>
+                    <li><strong>Topological Order:</strong> Dependencies resolved strictly from master branches down to transaction ledgers.</li>
                 </ul>
             </div>
-        </section>
+        </div>
     </div>
 </body>
 </html>
 """
-    return html
 
 if __name__ == "__main__":
     os.makedirs("docs", exist_ok=True)

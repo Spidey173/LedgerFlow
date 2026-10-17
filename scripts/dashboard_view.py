@@ -1,7 +1,8 @@
 """
-LedgerFlow — Executive Banking Data Platform & AWS Lakehouse Portal
--------------------------------------------------------------------
-Generates the HTML/CSS/JS interface for the live web portal.
+LedgerFlow — Executive Banking Data Platform & Lakehouse Portal
+---------------------------------------------------------------
+Clean, professional corporate red theme (HSBC / Santander style)
+featuring real interactive Chart.js visualizations, KPI cards, and data explorer.
 """
 
 def render_dashboard_html() -> str:
@@ -10,476 +11,659 @@ def render_dashboard_html() -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LedgerFlow — Executive Banking Data Platform</title>
+    <title>LedgerFlow — Banking Data Engineering Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --bg: #070B19;
-            --surface: #0F172A;
-            --surface-elevated: #1E293B;
-            --border: #334155;
-            --text-main: #F8FAFC;
-            --text-muted: #94A3B8;
-            --primary: #38BDF8;
-            --primary-glow: rgba(56, 189, 248, 0.15);
-            --green: #10B981;
-            --purple: #818CF8;
-            --red: #F43F5E;
-            --amber: #F59E0B;
+            --red-primary: #A61C1C;
+            --red-dark: #7A1212;
+            --red-hover: #8C1616;
+            --red-light: #FDF2F2;
+            --red-border: #F8D7DA;
+            --bg-page: #F5F6F8;
+            --bg-card: #FFFFFF;
+            --text-title: #1A1F2C;
+            --text-body: #4A5568;
+            --text-muted: #718096;
+            --border-color: #E2E8F0;
+            --border-subtle: #EDF2F7;
+            --green: #2B8A3E;
+            --gray-tag: #EDF2F7;
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            min-height: 100vh;
+            font-family: 'IBM Plex Sans', 'Segoe UI', -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-body);
             line-height: 1.5;
-            padding: 32px 20px;
+            -webkit-font-smoothing: antialiased;
         }
-        .container {
-            max-width: 1240px;
-            margin: 0 auto;
-        }
-        /* Top Navigation Bar */
-        .navbar {
+
+        /* Top Brand Header */
+        .top-navbar {
+            background-color: var(--red-primary);
+            color: #FFFFFF;
+            padding: 14px 28px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            padding: 16px 24px;
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            margin-bottom: 32px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         }
-        .logo-group {
+
+        .brand-section {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
-        .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, #0EA5E9, #6366F1);
-            border-radius: 10px;
+
+        .brand-logo {
+            font-weight: 700;
+            font-size: 19px;
+            letter-spacing: -0.01em;
+            color: #FFFFFF;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+            gap: 8px;
         }
-        .logo-title {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            background: linear-gradient(to right, #FFFFFF, #94A3B8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .status-pill {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            border-radius: 20px;
+
+        .brand-tag {
             font-size: 11px;
-            color: var(--green);
-            font-weight: 600;
-        }
-        .pulse {
-            width: 7px;
-            height: 7px;
-            background: var(--green);
-            border-radius: 50%;
-            box-shadow: 0 0 8px var(--green);
-            animation: pulse-anim 2s infinite;
-        }
-        @keyframes pulse-anim {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.85); }
-        }
-        .nav-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-        .btn-primary {
-            background: #2563EB;
-            color: #fff;
-            border: 1px solid transparent;
-        }
-        .btn-primary:hover {
-            background: #1D4ED8;
-            box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
-        }
-        .btn-outline {
-            background: rgba(30, 41, 59, 0.5);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-        }
-        .btn-outline:hover {
-            border-color: #64748B;
-            background: rgba(51, 65, 85, 0.5);
-        }
-
-        /* Hero Section */
-        .hero {
-            margin-bottom: 32px;
-        }
-        .hero h1 {
-            font-size: 36px;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin-bottom: 8px;
-        }
-        .hero h1 span {
-            background: linear-gradient(135deg, #38BDF8, #818CF8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero p {
-            color: var(--text-muted);
-            font-size: 16px;
-            max-width: 800px;
-        }
-
-        /* Metric Grid */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-        .metric-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s;
-        }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            border-color: #475569;
-        }
-        .metric-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .metric-title {
-            font-size: 12px;
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: var(--text-muted);
-        }
-        .metric-icon {
-            font-size: 16px;
-            padding: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-        }
-        .metric-value {
-            font-size: 28px;
-            font-weight: 800;
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            letter-spacing: -0.02em;
-        }
-        .metric-desc {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 6px;
         }
 
-        /* Architecture Flow Banner */
-        .flow-banner {
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4));
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 32px;
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .flow-title {
-            font-size: 16px;
+
+        .nav-btn {
+            background-color: rgba(255, 255, 255, 0.12);
+            color: #FFFFFF;
+            padding: 7px 14px;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .nav-btn-white {
+            background-color: #FFFFFF;
+            color: var(--red-primary);
+            border: 1px solid #FFFFFF;
+        }
+
+        .nav-btn-white:hover {
+            background-color: #FFF5F5;
+            color: var(--red-dark);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1280px;
+            margin: 28px auto;
+            padding: 0 24px 48px;
+        }
+
+        /* Platform Introduction Banner */
+        .intro-banner {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-left: 5px solid var(--red-primary);
+            border-radius: 6px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .intro-text h1 {
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 16px;
+            color: var(--text-title);
+            margin-bottom: 4px;
+        }
+
+        .intro-text p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .system-status {
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--green);
+            background-color: #EBFBEE;
+            border: 1px solid #D3F9D8;
+            padding: 6px 12px;
+            border-radius: 4px;
         }
-        .flow-steps {
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--green);
+            border-radius: 50%;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-            position: relative;
+            grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
-        .flow-step {
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid rgba(51, 65, 85, 0.8);
-            border-radius: 10px;
-            padding: 14px;
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 18px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            transition: border-color 0.15s ease;
         }
-        .step-num {
-            font-size: 10px;
-            font-weight: 800;
+
+        .kpi-card:hover {
+            border-color: #CBD5E1;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--primary);
-            margin-bottom: 4px;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
         }
-        .step-name {
-            font-size: 13px;
+
+        .kpi-number {
+            font-size: 26px;
             font-weight: 700;
-            color: #fff;
-            margin-bottom: 4px;
+            color: var(--text-title);
+            font-family: 'IBM Plex Mono', monospace;
+            letter-spacing: -0.02em;
         }
-        .step-sub {
-            font-size: 11px;
+
+        .kpi-subtext {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .kpi-highlight {
+            color: var(--red-primary);
+        }
+
+        /* Charts Section */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 960px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px 22px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .chart-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-title);
+        }
+
+        .chart-header .chart-meta {
+            font-size: 12px;
             color: var(--text-muted);
         }
 
-        /* Interactive Data Explorer */
-        .explorer-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+        .chart-container {
+            position: relative;
+            height: 270px;
+            width: 100%;
+        }
+
+        /* Architecture Steps Horizontal Bar */
+        .pipeline-flow {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+
+        .flow-headline {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .flow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .flow-box {
+            background: #FAFAFA;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            padding: 14px 16px;
+            border-top: 3px solid var(--red-primary);
+        }
+
+        .flow-num {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--red-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .flow-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-title);
+            margin-bottom: 3px;
+        }
+
+        .flow-detail {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Interactive Table Section */
+        .table-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
             margin-bottom: 32px;
         }
-        .explorer-header {
-            padding: 18px 24px;
-            border-bottom: 1px solid var(--border);
+
+        .table-toolbar {
+            padding: 16px 20px;
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 12px;
         }
-        .explorer-tabs {
-            display: flex;
-            gap: 8px;
+
+        .table-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-title);
         }
+
+        .tab-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
         .tab-btn {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid transparent;
+            background: #EDF2F7;
+            border: 1px solid #E2E8F0;
+            color: var(--text-body);
             padding: 6px 14px;
-            border-radius: 8px;
+            border-radius: 4px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
         }
+
         .tab-btn.active {
-            background: rgba(56, 189, 248, 0.1);
-            color: var(--primary);
-            border-color: rgba(56, 189, 248, 0.3);
+            background: var(--red-primary);
+            color: #FFFFFF;
+            border-color: var(--red-primary);
         }
+
         .tab-btn:hover:not(.active) {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.05);
+            background: #E2E8F0;
         }
-        .table-responsive {
+
+        .table-wrapper {
             overflow-x: auto;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             text-align: left;
         }
+
         th {
-            background: rgba(15, 23, 42, 0.8);
+            background: #F8FAFC;
             color: var(--text-muted);
-            font-size: 11px;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            padding: 12px 18px;
-            border-bottom: 1px solid var(--border);
+            letter-spacing: 0.04em;
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--border-color);
         }
+
         td {
-            padding: 12px 18px;
+            padding: 12px 16px;
             font-size: 13px;
-            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
-            font-family: 'JetBrains Mono', monospace;
+            border-bottom: 1px solid #F1F5F9;
+            color: var(--text-title);
+            font-family: 'IBM Plex Mono', monospace;
         }
+
         tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
+            background-color: #F8FAFC;
         }
+
+        /* Footer */
         .footer {
             text-align: center;
             color: var(--text-muted);
             font-size: 13px;
-            padding: 24px 0;
-            border-top: 1px solid rgba(51, 65, 85, 0.4);
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Navigation -->
-        <nav class="navbar">
-            <div class="logo-group">
-                <div class="logo-icon">⚡</div>
-                <div>
-                    <div class="logo-title">LedgerFlow Platform</div>
-                </div>
-                <div class="status-pill">
-                    <div class="pulse"></div>
-                    Warehouse Online
-                </div>
-            </div>
-            <div class="nav-actions">
-                <a href="/audit-report" class="btn btn-outline">📑 Data Quality Audit</a>
-                <a href="/docs" class="btn btn-primary">⚡ Swagger API Docs</a>
-                <a href="https://github.com/Spidey173/LedgerFlow" target="_blank" class="btn btn-outline">🐙 GitHub</a>
-                <a href="/?format=json" class="btn btn-outline">💾 Raw JSON</a>
-            </div>
-        </nav>
 
-        <!-- Hero -->
-        <div class="hero">
-            <h1>Executive <span>Banking Data Platform</span></h1>
-            <p>End-to-End Banking Data Lakehouse, Automated Data Quality Engine, and Analytical Warehouse serving ~5.8 Million records with zero data loss.</p>
+    <!-- Red Brand Header -->
+    <header class="top-navbar">
+        <div class="brand-section">
+            <div class="brand-logo">
+                <span>🏦</span> LedgerFlow
+            </div>
+            <span class="brand-tag">Banking Data Warehouse</span>
         </div>
-
-        <!-- Metric Cards -->
-        <div class="metrics-grid">
-            <div class="metric-card">
-                <div class="metric-header">
-                    <span class="metric-title">Total Processed Volume</span>
-                    <span class="metric-icon">💰</span>
-                </div>
-                <div class="metric-value">$3.98B</div>
-                <div class="metric-desc">Cumulative Deposits & Settlements</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-header">
-                    <span class="metric-title">Curated Customers</span>
-                    <span class="metric-icon">👥</span>
-                </div>
-                <div class="metric-value">55,050</div>
-                <div class="metric-desc">91.75% Verification Pass Rate</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-header">
-                    <span class="metric-title">Active Accounts</span>
-                    <span class="metric-icon">💳</span>
-                </div>
-                <div class="metric-value">87,177</div>
-                <div class="metric-desc">Savings, Current, Salary & FD</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-header">
-                    <span class="metric-title">Validated Transactions</span>
-                    <span class="metric-icon">⚡</span>
-                </div>
-                <div class="metric-value">1,835,551</div>
-                <div class="metric-desc">Topological Integrity Verified</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-header">
-                    <span class="metric-title">Active Loan Portfolio</span>
-                    <span class="metric-icon">📈</span>
-                </div>
-                <div class="metric-value">$5.46B</div>
-                <div class="metric-desc">13,098 Active Verified Loans</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-header">
-                    <span class="metric-title">Audited DLQ Quarantine</span>
-                    <span class="metric-icon">🛡️</span>
-                </div>
-                <div class="metric-value" style="color: #F43F5E;">720,520</div>
-                <div class="metric-desc">Isolated with Rejection Reason</div>
-            </div>
+        <div class="nav-links">
+            <a href="/audit-report" class="nav-btn">📑 Quality Audit Report</a>
+            <a href="/docs" class="nav-btn nav-btn-white">⚡ Swagger API Docs</a>
+            <a href="https://github.com/Spidey173/LedgerFlow" target="_blank" class="nav-btn">🐙 GitHub</a>
+            <a href="/?format=json" class="nav-btn">💾 JSON</a>
         </div>
+    </header>
 
-        <!-- Architecture Flow -->
-        <div class="flow-banner">
-            <div class="flow-title">
-                <span>☁️ Enterprise Lakehouse Architecture Pipeline</span>
-            </div>
-            <div class="flow-steps">
-                <div class="flow-step">
-                    <div class="step-num">Step 01</div>
-                    <div class="step-name">Secure Landing</div>
-                    <div class="step-sub">AES-256 Protected ZIP</div>
-                </div>
-                <div class="flow-step">
-                    <div class="step-num">Step 02</div>
-                    <div class="step-name">AWS SSM Decrypt</div>
-                    <div class="step-sub">KMS SecureString Key</div>
-                </div>
-                <div class="flow-step">
-                    <div class="step-num">Step 03</div>
-                    <div class="step-name">AWS S3 Bronze</div>
-                    <div class="step-sub">Cloud Raw Ingestion</div>
-                </div>
-                <div class="flow-step">
-                    <div class="step-num">Step 04</div>
-                    <div class="step-name">Quality & DLQ</div>
-                    <div class="step-sub">41 Pytest Rules Enforced</div>
-                </div>
-                <div class="flow-step">
-                    <div class="step-num">Step 05</div>
-                    <div class="step-name">PostgreSQL Marts</div>
-                    <div class="step-sub">Customer 360 & Analytics</div>
-                </div>
-            </div>
-        </div>
+    <!-- Content Body -->
+    <main class="main-container">
 
-        <!-- Interactive Explorer -->
-        <div class="explorer-card">
-            <div class="explorer-header">
-                <div>
-                    <h2 style="font-size: 16px; font-weight: 700;">Live Relational Data Explorer</h2>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Inspect curated warehouse records directly from the database</p>
+        <!-- Intro -->
+        <section class="intro-banner">
+            <div class="intro-text">
+                <h1>Banking Data Pipeline & Analytical Warehouse</h1>
+                <p>Topological Batch ETL, AWS S3 Lakehouse Ingestion & Automated Dead Letter Queue (DLQ) across 5.86M banking records.</p>
+            </div>
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span>PostgreSQL Warehouse Active • 41 Tests Passing</span>
+            </div>
+        </section>
+
+        <!-- KPI Grid -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Deposits</div>
+                <div class="kpi-number kpi-highlight">$3.98B</div>
+                <div class="kpi-subtext">Active Account Balances</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Curated Customers</div>
+                <div class="kpi-number">55,050</div>
+                <div class="kpi-subtext">91.75% Verification Rate</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Curated Accounts</div>
+                <div class="kpi-number">87,177</div>
+                <div class="kpi-subtext">Savings, Current, FD, NRI</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Transactions</div>
+                <div class="kpi-number">1,835,551</div>
+                <div class="kpi-subtext">Topologically Validated</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Active Loans</div>
+                <div class="kpi-number">$5.46B</div>
+                <div class="kpi-subtext">13,098 Active Portfolios</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Audited DLQ</div>
+                <div class="kpi-number" style="color: var(--red-primary);">720,520</div>
+                <div class="kpi-subtext">Isolated with Rejection Reason</div>
+            </div>
+        </section>
+
+        <!-- Charts Row -->
+        <section class="charts-row">
+            <!-- Ingestion Funnel Chart -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Data Quality & Ingestion Funnel by Entity</h3>
+                    <span class="chart-meta">Curated Clean vs. Quarantined DLQ</span>
                 </div>
-                <div class="explorer-tabs">
-                    <button class="tab-btn active" onclick="switchTab('customers')">Customers</button>
-                    <button class="tab-btn" onclick="switchTab('accounts')">Accounts</button>
-                    <button class="tab-btn" onclick="switchTab('transactions')">Transactions</button>
-                    <button class="tab-btn" onclick="switchTab('c360')">Customer 360</button>
+                <div class="chart-container">
+                    <canvas id="ingestionBarChart"></canvas>
                 </div>
             </div>
-            <div class="table-responsive">
-                <table id="explorer-table">
-                    <!-- Populated via Javascript -->
+
+            <!-- Customer Risk Breakdown Chart -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Customer Risk Portfolio</h3>
+                    <span class="chart-meta">Credit Score Segments</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="segmentDoughnutChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pipeline Architecture Flow -->
+        <section class="pipeline-flow">
+            <div class="flow-headline">End-to-End Enterprise Architecture</div>
+            <div class="flow-grid">
+                <div class="flow-box">
+                    <div class="flow-num">Stage 01</div>
+                    <div class="flow-name">Secure Payload</div>
+                    <div class="flow-detail">AES-256 Protected ZIP</div>
+                </div>
+                <div class="flow-box">
+                    <div class="flow-num">Stage 02</div>
+                    <div class="flow-name">AWS SSM Key</div>
+                    <div class="flow-detail">KMS SecureString Decryption</div>
+                </div>
+                <div class="flow-box">
+                    <div class="flow-num">Stage 03</div>
+                    <div class="flow-name">AWS S3 Bronze</div>
+                    <div class="flow-detail">Raw Object Storage</div>
+                </div>
+                <div class="flow-box">
+                    <div class="flow-num">Stage 04</div>
+                    <div class="flow-name">Data Quality</div>
+                    <div class="flow-detail">41 Pytest Rules & DLQ</div>
+                </div>
+                <div class="flow-box">
+                    <div class="flow-num">Stage 05</div>
+                    <div class="flow-name">PostgreSQL</div>
+                    <div class="flow-detail">Customer 360 & Analytics</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Relational Data Explorer -->
+        <section class="table-section">
+            <div class="table-toolbar">
+                <div class="table-title">Live Warehouse Data Explorer</div>
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTable('customers')">Customers</button>
+                    <button class="tab-btn" onclick="switchTable('accounts')">Accounts</button>
+                    <button class="tab-btn" onclick="switchTable('transactions')">Transactions</button>
+                    <button class="tab-btn" onclick="switchTable('c360')">Customer 360</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="dataTable">
+                    <!-- Populated by JavaScript -->
                 </table>
             </div>
-        </div>
+        </section>
 
-        <div class="footer">
-            LedgerFlow Banking Data Platform • Built with Python, PostgreSQL, AWS S3, and FastAPI • 41 Automated Tests Passing
-        </div>
-    </div>
+        <footer class="footer">
+            LedgerFlow Banking Platform • Built with Python, PostgreSQL, AWS S3, and FastAPI • 41 Unit Tests Passing
+        </footer>
+    </main>
 
     <script>
-        const tableData = {
+        // 1. Data Ingestion Bar Chart
+        const ctxBar = document.getElementById('ingestionBarChart').getContext('2d');
+        new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: ['Transactions', 'Cards Txns', 'Payments', 'Accounts', 'Customers', 'Cards', 'Loans'],
+                datasets: [
+                    {
+                        label: 'Curated Clean Records',
+                        data: [1835551, 2521980, 549015, 87177, 55050, 54643, 20137],
+                        backgroundColor: '#A61C1C',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Quarantined DLQ',
+                        data: [164449, 478020, 50985, 7823, 4950, 10357, 1863],
+                        backgroundColor: '#CBD5E1',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: { family: 'IBM Plex Sans', size: 12 },
+                            boxWidth: 14
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + Number(context.raw).toLocaleString() + ' rows';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'IBM Plex Sans', size: 11 } }
+                    },
+                    y: {
+                        grid: { color: '#EDF2F7' },
+                        ticks: {
+                            callback: function(val) {
+                                return (val >= 1000000 ? (val / 1000000) + 'M' : (val / 1000) + 'k');
+                            },
+                            font: { family: 'IBM Plex Mono', size: 11 }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 2. Customer Risk Segment Doughnut Chart
+        const ctxPie = document.getElementById('segmentDoughnutChart').getContext('2d');
+        new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['Subprime / High Risk', 'Standard / Moderate Risk', 'Premium / Low Risk'],
+                datasets: [{
+                    data: [34871, 15121, 5058],
+                    backgroundColor: ['#A61C1C', '#E2A03F', '#2B8A3E'],
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { family: 'IBM Plex Sans', size: 11 },
+                            boxWidth: 12,
+                            padding: 12
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = 55050;
+                                const pct = ((context.raw / total) * 100).toFixed(1);
+                                return context.label + ': ' + Number(context.raw).toLocaleString() + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                },
+                cutout: '62%'
+            }
+        });
+
+        // 3. Interactive Data Table
+        const datasets = {
             customers: {
-                headers: ["ID", "Name", "City", "State", "Occupation", "Income", "Credit Score", "Segment"],
+                headers: ["Cust ID", "Name", "City", "State", "Occupation", "Income", "Credit Score", "Risk Tier"],
                 rows: [
                     ["101", "Jane Doe", "New York", "NY", "Software Engineer", "$85,000", "720", "Premium / Low Risk"],
                     ["102", "Alexander Smith", "Chicago", "IL", "Financial Analyst", "$95,000", "765", "Premium / Low Risk"],
@@ -499,7 +683,7 @@ def render_dashboard_html() -> str:
                 ]
             },
             transactions: {
-                headers: ["Txn ID", "Account ID", "Date", "Type", "Amount", "Channel", "Category"],
+                headers: ["Txn ID", "Account ID", "Date", "Type", "Amount", "Channel", "Merchant Category"],
                 rows: [
                     ["5001", "1001", "2026-03-15 14:22", "Deposit", "$1,500.00", "Mobile App", "Direct Deposit"],
                     ["5002", "1001", "2026-03-16 09:15", "Withdrawal", "$120.00", "ATM", "Cash Withdrawal"],
@@ -520,30 +704,30 @@ def render_dashboard_html() -> str:
             }
         };
 
-        function switchTab(tabKey) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        function switchTable(name) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
 
-            const data = tableData[tabKey];
-            const table = document.getElementById('explorer-table');
-            
-            let thead = '<thead><tr>';
-            data.headers.forEach(h => thead += `<th>${h}</th>`);
-            thead += '</tr></thead>';
+            const item = datasets[name];
+            const table = document.getElementById('dataTable');
 
-            let tbody = '<tbody>';
-            data.rows.forEach(r => {
-                tbody += '<tr>';
-                r.forEach(cell => tbody += `<td>${cell}</td>`);
-                tbody += '</tr>';
+            let ths = '<thead><tr>';
+            item.headers.forEach(h => ths += `<th>${h}</th>`);
+            ths += '</tr></thead>';
+
+            let trs = '<tbody>';
+            item.rows.forEach(r => {
+                trs += '<tr>';
+                r.forEach(c => trs += `<td>${c}</td>`);
+                trs += '</tr>';
             });
-            tbody += '</tbody>';
+            trs += '</tbody>';
 
-            table.innerHTML = thead + tbody;
+            table.innerHTML = ths + trs;
         }
 
-        // Initialize with customers
-        switchTab('customers');
+        // Initialize table with customers view
+        switchTable('customers');
     </script>
 </body>
 </html>
