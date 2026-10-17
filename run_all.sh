@@ -41,6 +41,7 @@ RUN_API=false
 TEST_ONLY=false
 PIPELINE_ONLY=false
 RUN_AWS=false
+RUN_SECURE=false
 
 for arg in "$@"; do
     case $arg in
@@ -56,10 +57,14 @@ for arg in "$@"; do
         --aws)
             RUN_AWS=true
             ;;
+        --secure)
+            RUN_SECURE=true
+            ;;
         --help|-h)
             echo "Usage: ./run_all.sh [OPTIONS]"
             echo ""
             echo "Options:"
+            echo "  --secure         Execute AES-256 Protected ZIP Ingestion with AWS SSM & Postgres Load"
             echo "  --aws            Execute AWS S3 Ingestion & Glue ETL Pipeline"
             echo "  --api            Start FastAPI server after pipeline execution"
             echo "  --test-only      Run pytest test suite only"
@@ -71,7 +76,7 @@ for arg in "$@"; do
 done
 
 # Step 1: Run Validator Unit Tests
-if [ "${PIPELINE_ONLY}" = false ] && [ "${RUN_AWS}" = false ]; then
+if [ "${PIPELINE_ONLY}" = false ] && [ "${RUN_AWS}" = false ] && [ "${RUN_SECURE}" = false ]; then
     echo -e "\n${BOLD}${CYAN}[Step 1/4] Running Validator Unit Tests (Pytest)...${RESET}"
     ${PYTEST_BIN} -v tests/test_validation.py
     echo -e "${GREEN}✓ All validator unit tests passed successfully!${RESET}"
@@ -79,6 +84,16 @@ fi
 
 if [ "${TEST_ONLY}" = true ]; then
     echo -e "\n${GREEN}${BOLD}Test run complete.${RESET}"
+    exit 0
+fi
+
+# Branch: If --secure is specified, execute the AWS SSM Secure Ingestion Pipeline
+if [ "${RUN_SECURE}" = true ]; then
+    echo -e "\n${BOLD}${CYAN}[Secure Ingestion] Decrypting AES-256 ZIP via AWS SSM Parameter Store & Loading Postgres...${RESET}"
+    ${PYTHON_BIN} cloud_aws/secure_ingest.py
+    echo -e "\n${BOLD}${GREEN}====================================================================${RESET}"
+    echo -e "${BOLD}${GREEN}   SECURE INGESTION PIPELINE COMPLETED SUCCESSFULLY!                ${RESET}"
+    echo -e "${BOLD}${GREEN}====================================================================${RESET}"
     exit 0
 fi
 
