@@ -1,4 +1,7 @@
-# LedgerFlow — Banking Data Engineering Pipeline & Analytical Warehouse
+# 🏦 LedgerFlow — Banking Data Pipeline & Analytical Warehouse
+
+> **Target Role**: Associate Data Engineer / Junior Data Platform Engineer  
+> **Core Deliverable**: Topological batch ETL, AWS S3 lakehouse ingestion, and audited Dead Letter Queue across 5.86M core banking records.
 
 [![CI Pipeline](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml)
 [![Live Executive Portal](https://img.shields.io/badge/Live%20Portal-ledgerflow17.vercel.app-A61C1C?style=for-the-badge&logo=vercel)](https://ledgerflow17.vercel.app/)
@@ -8,82 +11,19 @@
 [![AWS S3](https://img.shields.io/badge/AWS%20S3-Cloud%20Data%20Lake-569A31?style=for-the-badge&logo=amazons3&logoColor=white)](https://aws.amazon.com/s3/)
 [![Security](https://img.shields.io/badge/AWS%20SSM-KMS%20SecureString-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](cloud_aws/secure_ingest.py)
 [![Tests](https://img.shields.io/badge/Pytest-41%20Passed-brightgreen?style=for-the-badge&logo=pytest)](tests/test_validation.py)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](docker-compose.yml)
-
-> 🏦 **Live Banking Executive Dashboard**: **[https://ledgerflow17.vercel.app/](https://ledgerflow17.vercel.app/)**  
-> 📑 **Data Quality & DLQ Audit Report**: **[https://ledgerflow17.vercel.app/audit-report](https://ledgerflow17.vercel.app/audit-report)**  
-> ⚡ **Interactive Swagger REST API**: **[https://ledgerflow17.vercel.app/docs](https://ledgerflow17.vercel.app/docs)**  
-> ☁️ **AWS S3 Cloud Lakehouse**: `s3://ledgerflow-banking-511492912610/` (Bronze `raw/`, Silver `curated/`, DLQ `quarantine/`)  
-> 🔐 **AWS Systems Manager (SSM)**: Decrypts AES-256 banking archives dynamically via KMS `SecureString` (`/ledgerflow/zip_password`)  
-> 📊 **Analytical Warehouse**: Neon Serverless PostgreSQL running ~5.15M curated records across 10 relational entities
 
 ---
 
-## 📌 Executive Summary
+## ⚡ 10-Second Recruiter Summary & Standout Metrics
 
-**LedgerFlow** is a production-grade banking data engineering pipeline and relational data warehouse built using **Python, PostgreSQL, AWS S3, and AWS Systems Manager (SSM)**. 
+| 📊 Scale & Data Volume | 🧪 Automated Quality | 🛡️ Integrity & DLQ | ⚡ Bulk Ingestion Speed | 🔐 Secret Management | 🌐 Live Evidence |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **5,868,950 Records**<br>(10 Banking Entities) | **41 / 41 Tests Passed**<br>(100% Automated CI) | **720,520 Quarantined**<br>(Audited Rejection Codes) | **100,000+ rows/sec**<br>(PostgreSQL Binary `COPY`) | **AWS SSM + KMS**<br>(AES-256 ZIP Decryption) | [**Executive Portal**](https://ledgerflow17.vercel.app/)<br>[**Audit Report**](https://ledgerflow17.vercel.app/audit-report)<br>[**Swagger API**](https://ledgerflow17.vercel.app/docs) |
 
-Processing **5.86 million core banking records** across 10 interconnected entities, the project solves the core engineering challenges encountered in modern financial institutions:
-1. **Topological Dependency Ordering**: Enforces strict parent-child validation hierarchy to prevent foreign key constraint violations prior to database bulk loading.
-2. **Automated Dead Letter Queue (DLQ)**: Quarantines invalid records (720k+ rows) with audit metadata (`rejection_reason`, `validation_stage`, `processed_at`) rather than silently dropping or crashing.
-3. **Enterprise Ingestion Security**: Protects raw data feeds using AES-256 encrypted ZIP archives decrypted on the fly using credentials stored in **AWS SSM Parameter Store** as a KMS `SecureString`.
-4. **Memory-Efficient Chunk Streaming**: Streams multi-million row transaction feeds (`chunksize=250k-300k`) and leverages PostgreSQL's native binary `COPY` protocol to bulk-load data in seconds with predictable RAM usage.
-5. **Continuous Quality Assurance**: 41 comprehensive Pytest unit tests run on every commit via **GitHub Actions CI**.
-
----
-
-## ⚡ Quickstart: One-Command Execution
-
-### Option A: Standard Full Pipeline Run (Local)
-```bash
-./run_all.sh
-```
-*Or using Make:*
-```bash
-make run
-```
-> **What this executes:**
-> 1. Runs **41 Pytest validation tests** (verifying schema rules, domain checks, and integrity constraints).
-> 2. Executes the **10-dataset pipeline in topological dependency order** (~5.86M raw rows -> ~5.15M curated clean rows + 720k rows routed to DLQ).
-> 3. Connects to PostgreSQL, loads curated data via high-speed streaming `COPY`, and refreshes analytical summary tables.
-> 4. Generates an execution summary report showing processed counts and runtimes.
-
----
-
-### Option B: Enterprise Secure Ingestion (AWS SSM + AES-256 ZIP)
-```bash
-./run_all.sh --secure
-```
-*Or using Make:*
-```bash
-make aws-secure
-```
-> **What this executes:**
-> 1. Dynamically connects to **AWS Systems Manager (SSM) Parameter Store** (`/ledgerflow/zip_password`).
-> 2. Decrypts the KMS `SecureString` password on the fly.
-> 3. Streams and extracts the AES-256 password-protected banking archive in memory.
-> 4. Validates data quality, routes bad records to DLQ, and streams clean data directly to PostgreSQL.
-
----
-
-### Option C: AWS Cloud Lakehouse Execution
-```bash
-./run_all.sh --aws
-```
-*Or using Make:*
-```bash
-make aws-pipeline
-```
-> **What this executes:**
-> Ingests raw datasets to **AWS S3 Bronze** (`s3://.../bronze/raw/`), executes cleaning rules into **S3 Silver** (`s3://.../silver/curated/`), routes bad records to **S3 DLQ** (`s3://.../quarantine/`), and loads to PostgreSQL.
-
----
-
-### Option D: Dockerized Warehouse & API Stack
-```bash
-docker-compose up --build -d
-```
-*Spins up PostgreSQL 15 and the FastAPI service with auto-initialized schemas and health checks on `http://localhost:8000`.*
+### 🎯 3 Standout Engineering Highlights
+1. **Topological Referential Validation**: Enforces strict parent-child validation hierarchy across 10 tables, resolving master lookups (`Branches`, `Customers`) before dependent transaction streams to prevent foreign key batch loading failures.
+2. **Audited Dead Letter Queue (DLQ)**: Rather than dropping corrupt data, 720k+ invalid records are quarantined with metadata (`rejection_reason`, `validation_stage`, `processed_at`) for upstream root cause remediation.
+3. **Enterprise Zero-Secret Ingestion**: Decrypts AES-256 protected banking ZIP archives using credentials dynamically retrieved from **AWS Systems Manager (SSM) Parameter Store** as a KMS `SecureString` without plain-text secrets in code or git.
 
 ---
 
@@ -137,17 +77,15 @@ flowchart TD
 
 ## 💡 How to Explain This Project in an Interview (Fresher Cheatsheet)
 
-This section provides clear, structured talking points to help you explain the technical decisions made in this project during data engineering interviews:
-
 ### Q1: "Can you walk me through the high-level architecture of LedgerFlow?"
 > *"I designed LedgerFlow to simulate core banking batch ETL and relational warehousing across 10 interconnected datasets (5.86 million rows). The pipeline begins with an AES-256 encrypted payload whose decryption key is securely fetched from AWS SSM Parameter Store using KMS. The data is staged in an AWS S3 Lakehouse following the Medallion architecture (Bronze, Silver, DLQ). Before loading into PostgreSQL, Python validators execute 41 data quality rules and enforce topological referential integrity. Valid records are bulk-loaded via PostgreSQL's native `COPY` protocol, while invalid records are isolated in an audited Dead Letter Queue. Finally, analytical marts and a Customer 360 view are served through FastAPI and a live executive portal."*
 
 ### Q2: "Why did you use Topological Sorting instead of processing datasets in parallel?"
 > *"In banking, relational integrity is non-negotiable. For instance, you cannot validate transactions without having a verified set of accounts, and you cannot validate accounts without clean customers and branches. If you process everything concurrently or load in random order, high-speed batch loaders fail with foreign key constraint errors. I ordered execution into 4 sequential tiers:*
-> * Tier 1: Master Lookups (`Branches`, `Employees`)*
-> * Tier 2: Core Entities (`Customers`)*
-> * Tier 3: Accounts & Portfolios (`Accounts`, `Loans`, `Cards`)*
-> * Tier 4: Transactional Streams (`Transactions`, `Loan Payments`, `Card Txns`, `Support Tickets`)*
+> * *Tier 1: Master Lookups (`Branches`, `Employees`)*
+> * *Tier 2: Core Entities (`Customers`)*
+> * *Tier 3: Accounts & Portfolios (`Accounts`, `Loans`, `Cards`)*
+> * *Tier 4: Transactional Streams (`Transactions`, `Loan Payments`, `Card Txns`, `Support Tickets`)*
 > *This guarantees that by the time transactions are processed, all valid parent account IDs are already indexed in memory for O(1) referential verification."*
 
 ### Q3: "How did you handle memory constraints when processing 5.86 million records?"
@@ -170,8 +108,6 @@ This section provides clear, structured talking points to help you explain the t
 ---
 
 ## 📊 Dataset & Ingestion Metrics Summary
-
-The pipeline was executed against the full 10-dataset core banking dataset. Results across all entities:
 
 | Dataset / Entity | Raw Ingested | Curated (Clean) | Quarantined (DLQ) | Pass Rate | Validation Stage | Primary Rejection Reason |
 | :--- | :---: | :---: | :---: | :---: | :--- | :--- |
@@ -206,15 +142,55 @@ All 41 tests are defined in [`tests/test_validation.py`](tests/test_validation.p
 | **Card Transactions** | 4 | Valid card transactions; empty/whitespace merchant category; non-positive amount; binary fraud flag validation (`is_fraud` in [0, 1]); orphan card FK; duplicate IDs. |
 | **Support Tickets** | 4 | Valid tickets; open ticket null resolution date (`date_resolved = NaN`); same-day resolution; resolution before opened chronology error; satisfaction score boundaries (`1 <= score <= 5`); duplicate IDs. |
 
-### Running the Test Suite:
+---
+
+## ⚡ Quickstart: One-Command Execution
+
 ```bash
-pytest -v
+# 1. Run unit tests and master 10-dataset pipeline locally
+./run_all.sh
+
+# 2. Run enterprise secure ingestion (AWS SSM + AES-256 ZIP)
+./run_all.sh --secure
+
+# 3. Run AWS Cloud Lakehouse pipeline (S3 Bronze -> Silver -> DLQ)
+./run_all.sh --aws
+
+# 4. Run Pytest unit tests only
+./run_all.sh --test-only
+
+# 5. Launch full container stack with Docker
+docker-compose up --build -d
 ```
 
 ---
 
-## 📂 Project Directory Structure
+## 🌐 Live API Endpoints & Verification
 
+The FastAPI REST service is live and accessible at **[https://ledgerflow17.vercel.app/](https://ledgerflow17.vercel.app/)**:
+
+| Endpoint | Method | Description |
+| :--- | :---: | :--- |
+| **`/`** | `GET` | **Executive Banking Dashboard**: interactive Chart.js charts, KPIs, and live relational data explorer. |
+| **`/audit-report`** | `GET` | **Data Quality & DLQ Audit Report**: quarantine root-cause metrics across all 10 entities. |
+| **`/docs`** | `GET` | **Interactive Swagger UI**: live schema explorer and interactive endpoint runner. |
+| **`/?format=json`** | `GET` | Raw JSON payload of high-level warehouse metrics. |
+| **`/customer/{id}`** | `GET` | Unified **Customer 360** profile linking accounts, loans, cards, and risk segment. |
+| **`/accounts`** | `GET` | Filter accounts by customer ID or account type. |
+| **`/transactions`** | `GET` | Paginated transaction stream filtered by account. |
+| **`/health`** | `GET` | Health check endpoint reporting database connectivity and AWS status. |
+
+---
+
+## 📂 Technical Stack & Project Structure
+
+### Tech Stack
+- **Languages & Core**: Python 3.11+, PostgreSQL 15, SQL (Window Functions & Aggregations)
+- **Data & Testing**: Pandas (Chunk Streaming), Pytest (41 Validation Unit Tests), Pytest-Cov
+- **Cloud Infrastructure**: AWS S3 (Medallion Data Lake), AWS Systems Manager (SSM Parameter Store + KMS), AWS Glue (PySpark), Apache Flink
+- **Web & Serving**: FastAPI, Uvicorn, Neon Serverless PostgreSQL, Chart.js, Docker, Vercel
+
+### Directory Tree
 ```text
 ledgerflow/
 ├── run_all.sh                         # Master One-Command execution script (--secure, --aws, --test-only)
@@ -243,16 +219,6 @@ ledgerflow/
 │   ├── run_pipeline.py                # Master DAG Orchestrator (10 pipelines)
 │   ├── dashboard_view.py              # Widescreen Executive Dashboard (HTML + Chart.js)
 │   ├── generate_audit_report.py       # Data Quality & DLQ Audit Report generator
-│   ├── process_customers.py           # Customer ETL
-│   ├── process_accounts.py            # Accounts ETL
-│   ├── process_transactions.py        # Transactions ETL (Chunked streaming)
-│   ├── process_loans.py               # Loans ETL
-│   ├── process_loan_payments.py       # Loan Payments ETL (Accounting Reconciliation)
-│   ├── process_cards.py               # Cards ETL (Dual FK check)
-│   ├── process_card_transactions.py   # Card Txns ETL (Chunked streaming)
-│   ├── process_branches.py            # Branches ETL
-│   ├── process_employees.py           # Employees ETL
-│   ├── process_support_tickets.py     # Support Tickets ETL
 │   ├── load_postgres.py               # Native COPY Bulk Loader
 │   └── api.py                         # FastAPI REST Endpoints & KPIs
 ├── validation/                        # 10 dedicated Data Quality validator modules
@@ -268,65 +234,6 @@ ledgerflow/
 │   └── data_dictionary.md             # Full Enterprise Data Dictionary
 └── logs/                              # Pipeline execution logs and audit reports
 ```
-
----
-
-## 🌐 Live API Endpoints & Verification
-
-The FastAPI REST service is live and accessible at **[https://ledgerflow17.vercel.app/](https://ledgerflow17.vercel.app/)**:
-
-| Endpoint | Method | Description |
-| :--- | :---: | :--- |
-| **`/`** | `GET` | **Executive Banking Dashboard**: interactive Chart.js charts, KPIs, and live relational data explorer. |
-| **`/audit-report`** | `GET` | **Data Quality & DLQ Audit Report**: quarantine root-cause metrics across all 10 entities. |
-| **`/docs`** | `GET` | **Interactive Swagger UI**: live schema explorer and interactive endpoint runner. |
-| **`/?format=json`** | `GET` | Raw JSON payload of high-level warehouse metrics. |
-| **`/customer/{id}`** | `GET` | Unified **Customer 360** profile linking accounts, loans, cards, and risk segment. |
-| **`/analytics/branch-summary`**| `GET` | Aggregated metrics by branch (total deposits, customer counts). |
-| **`/health`** | `GET` | Health check endpoint reporting database connectivity and status. |
-
----
-
-## 🛠️ Step-by-Step Manual Setup
-
-If you prefer setting up the environment step-by-step:
-
-### 1. Clone & Set Up Virtual Environment
-```bash
-git clone https://github.com/Spidey173/LedgerFlow.git
-cd LedgerFlow
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Run the Test Suite
-```bash
-pytest -v
-```
-
-### 3. Run the 10-Dataset ETL Pipeline
-```bash
-python3 scripts/run_pipeline.py
-```
-
-### 4. Initialize PostgreSQL Warehouse & Load Data
-```bash
-# 1. Apply DDL schema with primary and foreign keys
-psql -h localhost -U postgres -d bank_dwh -f sql/schema/create_tables.sql
-
-# 2. Bulk load 5.15M curated records via high-speed COPY
-python3 scripts/load_postgres.py
-
-# 3. Materialize analytical summary marts & Customer 360 view
-psql -h localhost -U postgres -d bank_dwh -f sql/analytics/create_analytics_tables.sql
-```
-
-### 5. Launch the Local FastAPI Server
-```bash
-uvicorn scripts.api:app --host 0.0.0.0 --port 8000 --reload
-```
-Access the dashboard at `http://localhost:8000` and Swagger docs at `http://localhost:8000/docs`.
 
 ---
 
