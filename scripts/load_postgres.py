@@ -52,15 +52,34 @@ def drop_staging_tables(cursor, tables):
     for table in tables:
         cursor.execute(f"DROP TABLE IF EXISTS stg_{table} CASCADE;")
 
-def atomic_swap_tables(cursor, tables):
+def atomic_swap_tables(cursor, tables, use_truncate: bool = False):
     """
-    Performs atomic truncate-and-insert swap from staging into target tables inside an active transaction.
-    If anything fails, the entire transaction rolls back and original data remains untouched.
+    Performs atomic data swap from staging into target warehouse tables inside an active transaction.
+
+    Locking & Concurrency Architecture:
+    - Non-Blocking by Default (use_truncate=False):
+      Executes `DELETE FROM {table}` in reverse topological order. Under PostgreSQL MVCC,
+      DELETE acquires a ROW EXCLUSIVE lock, which does NOT conflict with concurrent readers
+      acquiring ACCESS SHARE locks (SELECT queries). Concurrent API callers and analytical
+      dashboards continue reading the pre-refresh snapshot uninterrupted during the refresh.
+    - Truncate Mode (use_truncate=True):
+      Executes `TRUNCATE TABLE {table} CASCADE`. This acquires an ACCESS EXCLUSIVE lock,
+      which blocks concurrent readers until commit, but is faster for multi-gigabyte tables
+      where dead tuples and WAL volume are primary considerations.
+
+    Atomicity & Rollback:
+    - Executed within a single transaction (BEGIN ... COMMIT).
+    - If any step fails, the entire transaction rolls back cleanly, leaving original data untouched.
     """
-    logger.info("Executing atomic transactional data swap from staging to live warehouse...")
-    # Step 1: Truncate live tables in reverse order to respect foreign key constraints
+    swap_method = "TRUNCATE (exclusive lock)" if use_truncate else "DELETE (non-blocking MVCC)"
+    logger.info(f"Executing atomic transactional data swap from staging to live warehouse via {swap_method}...")
+
+    # Step 1: Clear live tables in reverse topological order to respect foreign key constraints
     for table in reversed(tables):
-        cursor.execute(f"TRUNCATE TABLE {table} CASCADE;")
+        if use_truncate:
+            cursor.execute(f"TRUNCATE TABLE {table} CASCADE;")
+        else:
+            cursor.execute(f"DELETE FROM {table};")
 
     # Step 2: Insert into live tables in topological forward order
     for table in tables:
@@ -68,7 +87,7 @@ def atomic_swap_tables(cursor, tables):
         cursor.execute(f"INSERT INTO {table} SELECT * FROM {staging_table};")
         logger.info(f"  ✓ Swapped staging data into '{table}'")
 
-def load_all_curated_data(staged: bool = True):
+def load_all_curated_data(staged: bool = True, use_truncate: bool = False):
     """
     Staged, Transactional Database Refresh:
     1. Validates presence of all curated datasets before modifying database state.
@@ -77,7 +96,7 @@ def load_all_curated_data(staged: bool = True):
        and released explicitly in the finally block via `pg_advisory_unlock`.
     3. Loads CSVs into temporary staging tables (`stg_*`).
     4. Validates staging row counts.
-    5. Atomically replaces data in target tables inside a single committed transaction.
+    5. Atomically replaces data in target tables inside a single committed transaction without blocking readers.
     6. Automatically rolls back on any error, preserving the prior dataset intact.
     """
     logger.info("Connecting to PostgreSQL warehouse...")
@@ -138,12 +157,15 @@ def load_all_curated_data(staged: bool = True):
                     raise ValueError(f"Staged table 'stg_{table}' has 0 rows despite non-empty CSV.")
 
             # Atomically swap staging data into live tables
-            atomic_swap_tables(cursor, tables)
+            atomic_swap_tables(cursor, tables, use_truncate=use_truncate)
             drop_staging_tables(cursor, tables)
         else:
             # Direct load fallback if staging is disabled
             for table in reversed(tables):
-                cursor.execute(f"TRUNCATE TABLE {table} CASCADE;")
+                if use_truncate:
+                    cursor.execute(f"TRUNCATE TABLE {table} CASCADE;")
+                else:
+                    cursor.execute(f"DELETE FROM {table};")
             for table, path in load_plan:
                 copy_csv_to_table(cursor, table, path)
 

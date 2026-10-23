@@ -23,8 +23,9 @@ def test_health_readiness():
     assert "database_connected" in data
     assert "status" in data
 
-def test_pagination_bounds():
+def test_pagination_bounds(monkeypatch):
     """Verify API enforces safe bounds on limit parameter."""
+    monkeypatch.setattr(config, "API_AUTH_ENABLED", False)
     # Test exceeding max limit (>200)
     response = client.get("/customers?limit=500")
     assert response.status_code == 422  # Pydantic validation error
@@ -35,6 +36,7 @@ def test_pagination_bounds():
 
 def test_database_failure_handling_without_demo_mode(monkeypatch):
     """Verify that when DEMO_MODE=False, database failure raises HTTP 503 instead of masking with demo data."""
+    monkeypatch.setattr(config, "API_AUTH_ENABLED", False)
     monkeypatch.setattr(config, "DEMO_MODE", False)
     # Ensure get_db returns None
     monkeypatch.setattr("scripts.api.get_db", lambda: None)
@@ -45,6 +47,7 @@ def test_database_failure_handling_without_demo_mode(monkeypatch):
 
 def test_database_failure_handling_with_explicit_demo_mode(monkeypatch):
     """Verify that when DEMO_MODE=True, fallback returns explicitly marked demo data."""
+    monkeypatch.setattr(config, "API_AUTH_ENABLED", False)
     monkeypatch.setattr(config, "DEMO_MODE", True)
     monkeypatch.setattr("scripts.api.get_db", lambda: None)
 

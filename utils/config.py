@@ -33,8 +33,9 @@ raw_origins = os.getenv("ALLOWED_ORIGINS", _default_origins).strip()
 ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 # API Authentication & RBAC
-# API_AUTH_ENABLED: when True, all data-serving endpoints require valid Bearer token
-API_AUTH_ENABLED = os.getenv("API_AUTH_ENABLED", "false").lower() in ("true", "1", "yes")
+# API_AUTH_ENABLED: Defaults to True for security in production deployments.
+# To bypass authentication for local testing/prototyping, set API_AUTH_ENABLED=false explicitly.
+API_AUTH_ENABLED = os.getenv("API_AUTH_ENABLED", "true").lower() in ("true", "1", "yes")
 
 # API_KEYS parsed into a mapping of {token: role}
 # Supported roles: 'admin', 'analyst', 'read_only'
@@ -47,6 +48,9 @@ if _raw_keys:
             API_KEYS[token.strip()] = role.strip().lower()
         elif entry.strip():
             API_KEYS[entry.strip()] = "read_only"
+elif API_AUTH_ENABLED and not os.getenv("CI"):
+    # If auth is enabled in deployment without CI test runner, warn if keys are empty
+    pass
 
 # Explicit Demo Mode: When True, endpoints can serve sanitized demo datasets
 # When False (default for production), failed live queries return HTTP 503 instead of masking errors

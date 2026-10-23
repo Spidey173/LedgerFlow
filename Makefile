@@ -43,7 +43,7 @@ aws-secure:
 help:
 	@echo "LedgerFlow: Modern Banking Data Platform - Available Commands:"
 	@echo "  make run          - Run unit tests and full 10-dataset ETL pipeline"
-	@echo "  make test         - Run 41 validator test cases with pytest"
+	@echo "  make test         - Run 55 test cases with pytest"
 	@echo "  make etl          - Run the master ETL pipeline across all 10 datasets"
 	@echo "  make load         - Bulk load curated data into PostgreSQL data warehouse"
 	@echo "  make aws-upload   - Ingest raw banking CSVs to AWS S3 Data Lake (Bronze)"

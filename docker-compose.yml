@@ -32,7 +32,8 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD must be provided}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8000}
-      API_AUTH_ENABLED: ${API_AUTH_ENABLED:-false}
+      API_AUTH_ENABLED: ${API_AUTH_ENABLED:-true}
+      API_KEYS: ${API_KEYS:-}
       DEMO_MODE: ${DEMO_MODE:-false}
     ports:
       - "8000:8000"

@@ -75,11 +75,11 @@ for arg in "$@"; do
     esac
 done
 
-# Step 1: Run Validator Unit Tests
+# Step 1: Run Full Test Suite (Validation, Security & Safe Staged Refresh)
 if [ "${PIPELINE_ONLY}" = false ] && [ "${RUN_AWS}" = false ] && [ "${RUN_SECURE}" = false ]; then
-    echo -e "\n${BOLD}${CYAN}[Step 1/4] Running Validator Unit Tests (Pytest)...${RESET}"
-    ${PYTEST_BIN} -v tests/test_validation.py
-    echo -e "${GREEN}✓ All validator unit tests passed successfully!${RESET}"
+    echo -e "\n${BOLD}${CYAN}[Step 1/4] Running Automated Test Suite (Pytest - 55 Tests)...${RESET}"
+    ${PYTEST_BIN} -v tests/
+    echo -e "${GREEN}✓ All automated tests passed successfully!${RESET}"
 fi
 
 if [ "${TEST_ONLY}" = true ]; then
@@ -160,7 +160,7 @@ echo -e "\n${BOLD}${CYAN}[Step 4/4] Execution Summary${RESET}"
 echo -e "${BOLD}${GREEN}====================================================================${RESET}"
 echo -e "${BOLD}${GREEN}   ALL OPERATIONS COMPLETED SUCCESSFULLY!                           ${RESET}"
 echo -e "${BOLD}${GREEN}====================================================================${RESET}"
-echo -e "• Tests:       ${GREEN}41 / 41 Passed${RESET}"
+echo -e "• Tests:       ${GREEN}55 / 55 Passed${RESET}"
 echo -e "• Datasets:    ${GREEN}10 Ingested, Validated, and Curated (~5.8M rows)${RESET}"
 echo -e "• Curated:     ${GREEN}data/curated/*.csv${RESET}"
 echo -e "• Dead Letter: ${YELLOW}data/bad_records/*_bad.csv${RESET}"

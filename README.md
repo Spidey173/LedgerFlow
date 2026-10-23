@@ -174,7 +174,7 @@ Copy `.env.example` to `.env` to configure your environment. Required and option
 | `DB_PASSWORD` | Yes* | *(none)* | Warehouse password (required unless `DATABASE_URL` is set) |
 | `DATABASE_URL` | No | *(none)* | Full PostgreSQL connection URI |
 | `ALLOWED_ORIGINS` | No | `http://localhost:3000,http://localhost:8000...` | Strict CORS origin allowlist (comma-separated, no `*` in prod) |
-| `API_AUTH_ENABLED` | No | `false` | When `true`, enforces Bearer token authentication on all entity endpoints |
+| `API_AUTH_ENABLED` | No | `true` | Enabled by default; enforces Bearer token authentication on all entity endpoints |
 | `API_KEYS` | If auth | *(none)* | Comma-separated `token:role` mappings (e.g., `key1:read_only,key2:analyst,key3:admin`) |
 | `DEMO_MODE` | No | `false` | When `false`, failed DB queries return HTTP 503; when `true`, explicitly serves labeled sandbox data |
 | `ZIP_DECRYPTION_PASSWORD` | If secure | *(none)* | AES-256 decryption key if AWS SSM is not used |
@@ -198,28 +198,47 @@ Copy `.env.example` to `.env` to configure your environment. Required and option
 ## 🛡️ Safe Database Refreshes & Operational Reliability
 
 ### Non-Destructive Staged Refreshes
-- **Staging Tables (`stg_*`)**: Clean curated data is loaded via binary `COPY` into unlogged staging tables rather than truncating live warehouse tables directly.
-- **Atomic Transactional Swap**: Live tables are swapped within a single transaction (`BEGIN ... INSERT ... COMMIT`). If a file is missing or a batch fails, the entire transaction rolls back cleanly, leaving existing data untouched.
-- **Concurrency Protection**: Uses PostgreSQL transactional advisory locks (`pg_try_advisory_lock`) to reject overlapping pipeline runs and prevent data corruption.
+- **Staging Tables (`stg_*`)**: Clean curated data is loaded via binary `COPY` into unlogged staging tables rather than modifying live warehouse tables directly.
+- **Non-Blocking Atomic Swap**: Live tables are refreshed within a single transaction (`BEGIN ... DELETE ... INSERT ... COMMIT`). By using `DELETE` in reverse topological order under PostgreSQL MVCC, row-level exclusive locks are acquired rather than `ACCESS EXCLUSIVE` table locks. This eliminates reader head-of-line blocking: concurrent API clients and analytical queries continue reading the pre-refresh snapshot uninterrupted during the refresh window.
+- **Session-Level Advisory Locks**: Employs PostgreSQL session-level advisory locks (`pg_try_advisory_lock`) to serialize pipeline runs across connections and prevent concurrent overlapping refreshes. The lock is held on the dedicated connection and explicitly released via `pg_advisory_unlock` in the `finally` block.
+- **Complete Transactional Rollback**: If any file is missing, any batch fails, or any foreign key constraint is violated, the entire transaction rolls back cleanly, leaving existing warehouse data untouched with zero partial writes.
 - **Failure Transparency**: Database connection and query failures return explicit `HTTP 503 Service Unavailable` responses. Demo fallback data is served **only** when `DEMO_MODE=true` is explicitly configured.
 
 ---
 
-## 🧪 Automated Testing Suite (51 Tests)
+## 🧪 Automated Testing Suite (55 Tests)
 
-All 51 tests are executed via `pytest`:
+All 55 tests are executed via `pytest`:
 * **Data Quality & Integrity (41 tests - `tests/test_validation.py`)**: Schema integrity, primary key constraints, domain boundary checks, foreign key referential integrity, accounting reconciliation.
-* **API Security & RBAC (7 tests - `tests/test_api_security.py`)**: Health/readiness checks, pagination bounds, Bearer token authentication, role-based authorization, CORS restriction, transparent 503 failure handling.
-* **Database Staged Refresh (3 tests - `tests/test_safe_refresh.py`)**: Staging table lifecycle, transactional swap ordering, concurrency advisory locks.
+* **API Security & RBAC (7 tests - `tests/test_api_security.py`)**: Health/readiness probes, pagination bounds, Bearer token authentication, role-based authorization, CORS restriction, transparent 503 failure handling.
+* **Database Staged Refresh (3 tests - `tests/test_safe_refresh.py`)**: Staging table lifecycle, transactional swap ordering (non-blocking DELETE and optional TRUNCATE modes), session-level advisory lock mutual exclusion.
+* **Real PostgreSQL Integration (4 tests - `tests/test_postgres_integration.py`)**: Executed against live PostgreSQL instance: session-level advisory lock mutual exclusion across connections, non-blocking concurrent reader query performance under MVCC, full 10-dataset loader end-to-end execution, and full loader failure rollback.
 
 ---
 
-## ⚠️ Known Limitations & Production Readiness Roadmap
+## ⚠️ Enterprise Banking Deployment & Security Review Checklist
 
-1. **Schema Migrations**: Schema creation currently uses raw DDL scripts (`sql/schema/create_tables.sql`). Production systems should adopt **Alembic** or **Flyway** for tracked, reversible schema versions.
-2. **Automated Alerting**: Dead Letter Queue records are audited to CSV/S3, but real-time alerting (PagerDuty, Slack, Amazon SNS) on threshold spikes is not yet wired to a live notification bus.
-3. **Incremental CDC Sync**: The current pipeline performs scheduled bulk staged refreshes. Streaming change-data-capture (Debezium / Kafka Connect) would be required for sub-second replication.
-4. **Data Freshness SLAs**: Monitoring dashboards and automated SLA health probes should be integrated to enforce freshness guarantees.
+Before adapting LedgerFlow for live customer financial data or regulated banking workloads, the following enterprise security controls and operational practices must be completed:
+
+1. **Enterprise Identity & Access Management (IAM)**:
+   - *Current Implementation*: Static Bearer tokens mapped to RBAC roles via constant-time string comparison (`hmac.compare_digest`).
+   - *Production Requirement*: Replace with an enterprise Identity Provider (IdP) supporting OAuth 2.0 / OpenID Connect (e.g., Okta, Keycloak, Ping Identity, AWS Cognito) issuing short-lived cryptographically signed JWTs (RS256). Implement mutual TLS (mTLS) for all service-to-service communication.
+2. **Data-at-Rest & In-Flight Encryption (PII & PCI-DSS Compliance)**:
+   - *Production Requirement*: Enforce TLS 1.3 with strict certificate validation (`sslmode=verify-full`) on all database and pipeline connections. Encrypt sensitive customer PII columns (phone, email, annual income, credit score) and payment card numbers at rest using column-level envelope encryption (AWS KMS / PostgreSQL `pgcrypto`). Enforce dynamic data masking (DDM) for unprivileged database roles.
+3. **Immutable Audit Trails & Non-Repudiation (SOX, PCI-DSS, GDPR, RBI)**:
+   - *Current Implementation*: Automated redaction of credentials and database URIs in application logs (`SensitiveDataFilter`).
+   - *Production Requirement*: Enable database access auditing (e.g., `pgaudit`) to capture all SELECT queries touching customer tables. Stream immutable audit logs to a secure, tamper-proof SIEM (Splunk, AWS CloudWatch, Datadog) with financial retention policies.
+4. **Zero-Downtime High-Concurrency Schema Architecture**:
+   - *Current Implementation*: Non-blocking staged `DELETE + INSERT` under MVCC prevents table-level lock blocking for read traffic.
+   - *Production Requirement*: For multi-gigabyte or terabyte-scale warehouses where batch deletes generate significant dead tuples, adopt **Blue-Green Schema Swapping** (swapping `search_path` or view pointers between `curated_blue` and `curated_green`) or native table partitioning with partition detachment/attachment.
+5. **Dynamic Secret Management & Automated Rotation**:
+   - *Current Implementation*: Secrets fetched from environment or KMS-backed AWS SSM `SecureString`.
+   - *Production Requirement*: Integrate with AWS Secrets Manager or HashiCorp Vault to enforce automated 30-day credential rotation and eliminate static tokens in container definitions.
+6. **Network & Perimeter Isolation**:
+   - *Production Requirement*: Deploy warehouse and ETL workers within private VPC subnets with no public IP addresses. Use AWS PrivateLink for S3 and SSM access, and deploy AWS WAF (Web Application Firewall) in front of the API.
+7. **Production Migration Framework**:
+   - *Current Implementation*: Raw DDL schemas (`sql/schema/create_tables.sql`).
+   - *Production Requirement*: Adopt **Alembic** or **Flyway** for version-controlled, tracked, and reversible database migrations.
 
 ---
 
@@ -227,10 +246,10 @@ All 51 tests are executed via `pytest`:
 
 | Command | Action |
 | :--- | :--- |
-| **`./run_all.sh`** | **One-command master run**: executes 51 tests, 10 ETL pipelines, and DB load. |
+| **`./run_all.sh`** | **One-command master run**: executes 55 tests, 10 ETL pipelines, and DB load. |
 | **`./run_all.sh --secure`** | **Enterprise Secure Ingestion**: fetches AWS SSM key, decrypts AES-256 ZIP, and loads DB. |
 | **`./run_all.sh --aws`** | **AWS Cloud Lakehouse Run**: S3 Bronze ingestion, Glue ETL, DLQ routing, and DB load. |
-| **`./run_all.sh --test-only`**| Runs only the 51 Pytest validator & security test suite. |
+| **`./run_all.sh --test-only`**| Runs only the 55 Pytest validator & security test suite. |
 | **`./run_all.sh --api`** | Runs full pipeline and immediately launches local FastAPI server. |
 | **`make test`** | Runs Pytest with verbose test descriptions. |
 | **`make aws-secure`** | Runs the AWS SSM Parameter Store + AES-256 ZIP ingestion script. |

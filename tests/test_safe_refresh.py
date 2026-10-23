@@ -19,22 +19,31 @@ def test_staging_tables_lifecycle():
     assert mock_cursor.execute.call_count == 2
 
 def test_atomic_swap_executes_in_order():
-    """Verify that atomic swap truncates live tables in reverse order and inserts forward."""
+    """Verify that atomic swap clears live tables in reverse order and inserts forward."""
     mock_cursor = MagicMock()
     tables = ["branches", "customers", "accounts"]
     
-    atomic_swap_tables(mock_cursor, tables)
+    # 1. Test Default Non-Blocking MVCC Swap (DELETE)
+    atomic_swap_tables(mock_cursor, tables, use_truncate=False)
 
     calls = [call[0][0] for call in mock_cursor.execute.call_args_list]
-    # Reverse truncation
-    assert "TRUNCATE TABLE accounts CASCADE;" in calls[0]
-    assert "TRUNCATE TABLE customers CASCADE;" in calls[1]
-    assert "TRUNCATE TABLE branches CASCADE;" in calls[2]
+    # Reverse non-blocking deletion
+    assert "DELETE FROM accounts;" in calls[0]
+    assert "DELETE FROM customers;" in calls[1]
+    assert "DELETE FROM branches;" in calls[2]
 
     # Forward staged insert
     assert "INSERT INTO branches SELECT * FROM stg_branches;" in calls[3]
     assert "INSERT INTO customers SELECT * FROM stg_customers;" in calls[4]
     assert "INSERT INTO accounts SELECT * FROM stg_accounts;" in calls[5]
+
+    # 2. Test Optional Truncate Mode
+    mock_cursor.reset_mock()
+    atomic_swap_tables(mock_cursor, tables, use_truncate=True)
+    truncate_calls = [call[0][0] for call in mock_cursor.execute.call_args_list]
+    assert "TRUNCATE TABLE accounts CASCADE;" in truncate_calls[0]
+    assert "TRUNCATE TABLE customers CASCADE;" in truncate_calls[1]
+    assert "TRUNCATE TABLE branches CASCADE;" in truncate_calls[2]
 
 def test_concurrent_run_prevention_via_advisory_lock(monkeypatch):
     """Verify that if an advisory lock cannot be acquired, the loader aborts immediately."""
