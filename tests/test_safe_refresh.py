@@ -46,6 +46,8 @@ def test_concurrent_run_prevention_via_advisory_lock(monkeypatch):
     mock_cursor.fetchone.return_value = [False]
     monkeypatch.setattr(loader, "get_connection", lambda: mock_conn)
     monkeypatch.setattr(loader, "validate_db_credentials", lambda raise_on_missing=True: True)
+    # Ensure test does not depend on local CSV files being present on disk
+    monkeypatch.setattr(loader.os.path, "exists", lambda p: True)
 
     with pytest.raises(RuntimeError) as exc_info:
         loader.load_all_curated_data()
@@ -53,3 +55,4 @@ def test_concurrent_run_prevention_via_advisory_lock(monkeypatch):
     assert "Another pipeline refresh operation is currently in progress" in str(exc_info.value)
     # Ensure rollback is triggered on failure
     mock_conn.rollback.assert_called_once()
+
