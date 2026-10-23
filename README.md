@@ -200,9 +200,23 @@ Copy `.env.example` to `.env` to configure your environment. Required and option
 ### Non-Destructive Staged Refreshes
 - **Staging Tables (`stg_*`)**: Clean curated data is loaded via binary `COPY` into unlogged staging tables rather than modifying live warehouse tables directly.
 - **Non-Blocking Atomic Swap**: Live tables are refreshed within a single transaction (`BEGIN ... DELETE ... INSERT ... COMMIT`). By using `DELETE` in reverse topological order under PostgreSQL MVCC, row-level exclusive locks are acquired rather than `ACCESS EXCLUSIVE` table locks. This eliminates reader head-of-line blocking: concurrent API clients and analytical queries continue reading the pre-refresh snapshot uninterrupted during the refresh window.
+- **Post-Commit Maintenance**: To prevent heap bloat from deleted rows, the loader automatically executes `VACUUM ANALYZE` on a dedicated autocommit connection immediately after transaction commit, reclaiming dead tuples and refreshing query planner statistics.
 - **Session-Level Advisory Locks**: Employs PostgreSQL session-level advisory locks (`pg_try_advisory_lock`) to serialize pipeline runs across connections and prevent concurrent overlapping refreshes. The lock is held on the dedicated connection and explicitly released via `pg_advisory_unlock` in the `finally` block.
 - **Complete Transactional Rollback**: If any file is missing, any batch fails, or any foreign key constraint is violated, the entire transaction rolls back cleanly, leaving existing warehouse data untouched with zero partial writes.
 - **Failure Transparency**: Database connection and query failures return explicit `HTTP 503 Service Unavailable` responses. Demo fallback data is served **only** when `DEMO_MODE=true` is explicitly configured.
+
+### Scale Trade-Offs & Concurrency Architecture (DELETE vs. TRUNCATE vs. Schema Swapping)
+* **The MVCC `DELETE` Trade-Off (Default Mode)**:
+  * *Advantage*: Prevents reader downtime. Readers running `SELECT` acquire `ACCESS SHARE` locks, which do not conflict with `DELETE`'s `ROW EXCLUSIVE` locks.
+  * *Scale Limitation*: Full replacement via `DELETE` generates significant Write-Ahead Logging (WAL) and creates heap dead tuples equal to the table row count. All 16 indexes must also update for every inserted and deleted row. While post-commit `VACUUM ANALYZE` mitigates bloat, at massive scale (tens of millions of rows) full replacement becomes I/O intensive.
+* **The `TRUNCATE` Trade-Off (`use_truncate=True`)**:
+  * *Advantage*: Instantly frees data pages without generating dead tuples; ideal for offline batch initialization.
+  * *Concurrency Hazard*: Acquires an `ACCESS EXCLUSIVE` table lock that blocks all incoming `SELECT` readers and queues behind active read transactions.
+* **Enterprise Blueprint for High-Scale Warehouses**:
+  * For terabyte-scale financial systems, full-table replacements should be superseded by:
+    1. **Blue-Green Schema Swapping**: Stage and index tables in a shadow schema (`curated_staging`) and swap schema or view pointers in microseconds via atomic DDL rename.
+    2. **Declarative Partition Swapping**: Refresh date-partitioned tables using sub-millisecond `ALTER TABLE ... ATTACH PARTITION`.
+    3. **Incremental CDC Upserts**: Ingest only delta watermarks via `INSERT ... ON CONFLICT DO UPDATE` or `MERGE` instead of full rewrites.
 
 ---
 
@@ -213,6 +227,8 @@ All 55 tests are executed via `pytest`:
 * **API Security & RBAC (7 tests - `tests/test_api_security.py`)**: Health/readiness probes, pagination bounds, Bearer token authentication, role-based authorization, CORS restriction, transparent 503 failure handling.
 * **Database Staged Refresh (3 tests - `tests/test_safe_refresh.py`)**: Staging table lifecycle, transactional swap ordering (non-blocking DELETE and optional TRUNCATE modes), session-level advisory lock mutual exclusion.
 * **Real PostgreSQL Integration (4 tests - `tests/test_postgres_integration.py`)**: Executed against live PostgreSQL instance: session-level advisory lock mutual exclusion across connections, non-blocking concurrent reader query performance under MVCC, full 10-dataset loader end-to-end execution, and full loader failure rollback.
+  * *Self-Bootstrapping*: Tests automatically provision and initialize `ledgerflow_test_db` schema from DDL if a PostgreSQL server is reachable.
+  * *CI Integration*: GitHub Actions (`.github/workflows/ci.yml`) runs a live containerized PostgreSQL 15 service, ensuring **all 55 tests pass in CI** without skipping. Local environments without PostgreSQL running will gracefully skip the 4 live database tests while executing the 51 unit and mock tests.
 
 ---
 

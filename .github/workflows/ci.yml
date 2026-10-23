@@ -8,8 +8,23 @@ on:
 
 jobs:
   test:
-    name: Run Data Quality Tests
+    name: Run Data Quality, Security, and Live Database Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: ledgerflow_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout Code
@@ -26,10 +41,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Data Quality, Security, and Refresh Tests
+      - name: Run Full Test Suite (55 Tests including Live PostgreSQL Integration)
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: ledgerflow_test_db
+          TEST_DB_NAME: ledgerflow_test_db
+          DB_USER: postgres
+          DB_PASSWORD: testpassword123
         run: |
           pytest -v tests/
 
-      - name: Verify Module Imports & Fast API Initialization
+      - name: Verify Module Imports & FastAPI Initialization
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: ledgerflow_test_db
+          DB_USER: postgres
+          DB_PASSWORD: testpassword123
         run: |
           python -c "from scripts.api import app; print('FastAPI App loaded successfully!')"

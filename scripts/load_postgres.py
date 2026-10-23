@@ -56,22 +56,36 @@ def atomic_swap_tables(cursor, tables, use_truncate: bool = False):
     """
     Performs atomic data swap from staging into target warehouse tables inside an active transaction.
 
-    Locking & Concurrency Architecture:
+    Concurrency, Locking & Scale Architecture:
     - Non-Blocking by Default (use_truncate=False):
       Executes `DELETE FROM {table}` in reverse topological order. Under PostgreSQL MVCC,
       DELETE acquires a ROW EXCLUSIVE lock, which does NOT conflict with concurrent readers
       acquiring ACCESS SHARE locks (SELECT queries). Concurrent API callers and analytical
       dashboards continue reading the pre-refresh snapshot uninterrupted during the refresh.
+      
+      *Scale Trade-Off Note*: While readers are not blocked, full table replacement via DELETE
+      writes a replacement set of rows, generates significant Write-Ahead Logging (WAL),
+      leaves dead tuples in the heap, and requires updating all indexes across tables. Post-commit
+      VACUUM ANALYZE is triggered to reclaim space and refresh optimizer statistics.
+      
     - Truncate Mode (use_truncate=True):
-      Executes `TRUNCATE TABLE {table} CASCADE`. This acquires an ACCESS EXCLUSIVE lock,
-      which blocks concurrent readers until commit, but is faster for multi-gigabyte tables
-      where dead tuples and WAL volume are primary considerations.
+      Executes `TRUNCATE TABLE {table} CASCADE`. This instantly deallocates pages without
+      dead-tuple bloat, but acquires an ACCESS EXCLUSIVE lock on every table. This lock blocks
+      ALL concurrent readers until transaction commit, and will queue behind active readers,
+      potentially causing reader connection timeouts in production.
+
+    - Production Blueprint for Large-Scale Data Platforms:
+      For multi-gigabyte or terabyte financial warehouses, full replacement should be evolved into:
+      1) Blue-Green Schema Swapping: Staged tables pre-indexed in a shadow schema and swapped
+         instantaneously via DDL schema rename or View pointer switching (microseconds duration).
+      2) Declarative Partition Swapping: Attaching new date partitions with ALTER TABLE ... ATTACH PARTITION.
+      3) Incremental Upsert / Merge: Delta ingestion using watermark timestamps (INSERT ... ON CONFLICT).
 
     Atomicity & Rollback:
     - Executed within a single transaction (BEGIN ... COMMIT).
     - If any step fails, the entire transaction rolls back cleanly, leaving original data untouched.
     """
-    swap_method = "TRUNCATE (exclusive lock)" if use_truncate else "DELETE (non-blocking MVCC)"
+    swap_method = "TRUNCATE (exclusive lock; blocks readers)" if use_truncate else "DELETE (non-blocking MVCC; writes replacement rows)"
     logger.info(f"Executing atomic transactional data swap from staging to live warehouse via {swap_method}...")
 
     # Step 1: Clear live tables in reverse topological order to respect foreign key constraints
@@ -87,7 +101,7 @@ def atomic_swap_tables(cursor, tables, use_truncate: bool = False):
         cursor.execute(f"INSERT INTO {table} SELECT * FROM {staging_table};")
         logger.info(f"  ✓ Swapped staging data into '{table}'")
 
-def load_all_curated_data(staged: bool = True, use_truncate: bool = False):
+def load_all_curated_data(staged: bool = True, use_truncate: bool = False, vacuum_analyze: bool = True):
     """
     Staged, Transactional Database Refresh:
     1. Validates presence of all curated datasets before modifying database state.
@@ -98,6 +112,7 @@ def load_all_curated_data(staged: bool = True, use_truncate: bool = False):
     4. Validates staging row counts.
     5. Atomically replaces data in target tables inside a single committed transaction without blocking readers.
     6. Automatically rolls back on any error, preserving the prior dataset intact.
+    7. Optionally executes post-commit VACUUM ANALYZE to clean dead tuples and update planner stats.
     """
     logger.info("Connecting to PostgreSQL warehouse...")
     conn = get_connection()
@@ -171,6 +186,21 @@ def load_all_curated_data(staged: bool = True, use_truncate: bool = False):
 
         conn.commit()
         logger.info("Warehouse refresh committed successfully! All 10 tables updated.")
+
+        # Post-load maintenance: Reclaim dead tuples from DELETE and refresh query planner statistics
+        if vacuum_analyze and not use_truncate:
+            logger.info("Executing post-refresh VACUUM ANALYZE to reclaim dead tuples and refresh planner statistics...")
+            try:
+                # In PostgreSQL, VACUUM cannot run inside an active transaction block; use autocommit connection.
+                vac_conn = get_connection()
+                vac_conn.autocommit = True
+                with vac_conn.cursor() as vac_cur:
+                    for table in tables:
+                        vac_cur.execute(f"VACUUM ANALYZE {table};")
+                vac_conn.close()
+                logger.info("Post-refresh VACUUM ANALYZE completed successfully.")
+            except Exception as vac_err:
+                logger.warning(f"Non-fatal warning: Post-refresh VACUUM ANALYZE encountered an issue: {vac_err}")
 
         # Post-load verification
         logger.info("\n--- Live Warehouse Table Record Verification (10 Tables) ---")
