@@ -5,16 +5,16 @@ services:
     image: postgres:15-alpine
     container_name: bank_postgres
     environment:
-      POSTGRES_DB: bank_dwh
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: ${POSTGRES_DB:-bank_dwh}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD must be provided}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./sql/schema/create_tables.sql:/docker-entrypoint-initdb.d/01_schema.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d bank_dwh"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bank_dwh}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,9 +28,12 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: bank_dwh
-      DB_USER: postgres
-      DB_PASSWORD: password123
+      DB_NAME: ${POSTGRES_DB:-bank_dwh}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD must be provided}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8000}
+      API_AUTH_ENABLED: ${API_AUTH_ENABLED:-false}
+      DEMO_MODE: ${DEMO_MODE:-false}
     ports:
       - "8000:8000"
 

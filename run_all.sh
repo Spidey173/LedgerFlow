@@ -145,7 +145,7 @@ if [ "${DB_AVAILABLE}" = true ]; then
     # Materialize analytics marts if psql is present
     if command -v psql &> /dev/null; then
         echo -e "Materializing Customer 360 and Analytical Marts..."
-        PGPASSWORD="${DB_PASSWORD:-password123}" psql -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "${DB_NAME:-bank_dwh}" -f sql/analytics/create_analytics_tables.sql > /dev/null 2>&1 || true
+        PGPASSWORD="${DB_PASSWORD:-}" psql -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "${DB_NAME:-bank_dwh}" -f sql/analytics/create_analytics_tables.sql > /dev/null 2>&1 || true
         echo -e "${GREEN}✓ Analytical marts refreshed!${RESET}"
     fi
 else

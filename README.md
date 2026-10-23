@@ -1,27 +1,31 @@
-# 🏦 LedgerFlow — Banking Data Pipeline & PostgreSQL Warehouse
+# 🏦 LedgerFlow — Banking Data Engineering Pipeline & Analytical Warehouse
 
-> **Target Role**: Junior Data Engineer / Python & SQL Developer  
-> **Summary**: A clean, end-to-end Python ETL pipeline that validates banking records, isolates bad rows into a Dead Letter Queue (DLQ), and loads clean data into PostgreSQL with 41 automated Pytest unit tests.
-
-[![Tests](https://img.shields.io/badge/Pytest-41%20Passed-brightgreen?style=flat-square&logo=pytest)](tests/test_validation.py)
+[![CI Pipeline](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Pytest-51%20Passed-brightgreen?style=flat-square&logo=pytest)](tests/)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL-blue?style=flat-square&logo=postgresql&logoColor=white)](sql/schema/create_tables.sql)
 [![Python](https://img.shields.io/badge/Python-3.11+-yellow?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![AWS S3](https://img.shields.io/badge/AWS-S3%20Storage-orange?style=flat-square&logo=amazons3&logoColor=white)](cloud_aws/s3_uploader.py)
-[![Live Demo](https://img.shields.io/badge/Live%20Dashboard-ledgerflow17.vercel.app-red?style=flat-square&logo=vercel)](https://ledgerflow17.vercel.app/)
+[![Security](https://img.shields.io/badge/Security-KMS%20SecureString%20%2B%20RBAC-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](cloud_aws/secure_ingest.py)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](docker-compose.yml)
+
+> 🏦 **Live Banking Executive Dashboard**: **[https://ledgerflow17.vercel.app/](https://ledgerflow17.vercel.app/)**  
+> 📑 **Data Quality & DLQ Audit Report**: **[https://ledgerflow17.vercel.app/audit-report](https://ledgerflow17.vercel.app/audit-report)**  
+> ⚡ **Interactive Swagger REST API**: **[https://ledgerflow17.vercel.app/docs](https://ledgerflow17.vercel.app/docs)**  
+> ☁️ **AWS S3 Cloud Lakehouse**: `s3://ledgerflow-banking-511492912610/` (Bronze `raw/`, Silver `curated/`, DLQ `quarantine/`)  
 
 ---
 
-## 📌 What Problem Does This Project Solve?
+## 📌 Executive Summary
 
-In real banking operations, raw data feeds frequently contain bad data: negative account balances, credit scores outside the 300–850 range, transactions pointing to closed or non-existent accounts, and invalid email formats. If you try to bulk-load this raw data directly into a relational database, the database crashes with foreign key or constraint errors.
+**LedgerFlow** is a resilient banking data engineering pipeline and relational data warehouse built using **Python, PostgreSQL, AWS S3, and AWS Systems Manager (SSM)**. 
 
-**LedgerFlow solves this by:**
-1. **Reading 10 Relational Datasets**: Customers, Accounts, Transactions, Loans, Cards, Branches, Employees, etc.
-2. **Validating Data in Python**: Checks formats, data types, value ranges, and parent-child relationships before touching the database.
-3. **Isolating Bad Rows (Dead Letter Queue)**: Clean records are kept for the warehouse; bad records are routed to `data/bad_records/` with the exact `rejection_reason` so nothing is lost.
-4. **Fast PostgreSQL Ingestion**: Loads clean records into PostgreSQL using the native high-speed `COPY` command.
-5. **Testing Everything**: 41 automated Pytest unit tests verify every data validation rule.
-6. **Viewing the Results**: A clean web dashboard and REST API (FastAPI) showing warehouse KPIs and Customer 360 profiles.
+Processing **5.86 million core banking records** across 10 interconnected entities, the project solves the core engineering challenges encountered in modern financial data platforms:
+1. **Topological Dependency Ordering**: Enforces strict parent-child validation hierarchy to prevent foreign key constraint violations prior to database bulk loading.
+2. **Automated Dead Letter Queue (DLQ)**: Quarantines invalid records (720k+ rows) with audit metadata (`rejection_reason`, `validation_stage`, `processed_at`) rather than silently dropping or crashing.
+3. **Enterprise Ingestion Security**: Protects raw data feeds using AES-256 encrypted ZIP archives decrypted on the fly using credentials stored in **AWS SSM Parameter Store** as a KMS `SecureString`.
+4. **Memory-Efficient Chunk Streaming**: Streams multi-million row transaction feeds (`chunksize=250k-300k`) and leverages PostgreSQL's native binary `COPY` protocol to bulk-load data with predictable RAM usage.
+5. **Non-Destructive Staged Refreshes**: Staged table swaps (`stg_*`) and PostgreSQL advisory locks protect the live warehouse against concurrency corruption and data loss on pipeline failure.
+6. **Continuous Quality Assurance**: 51 automated Pytest unit and integration tests run on every commit via **GitHub Actions CI**.
 
 ---
 
@@ -30,51 +34,56 @@ In real banking operations, raw data feeds frequently contain bad data: negative
 * **Total Records Ingested**: **5,868,950** rows across 10 datasets
 * **Clean Records Loaded**: **5,148,430** rows (87.72% pass rate)
 * **Bad Records Quarantined**: **720,520** rows (saved in DLQ with audit reason)
-* **Automated Unit Tests**: **41 / 41 passing** (Pytest)
-* **Database**: PostgreSQL (10 tables with Primary & Foreign Keys)
-* **Live Links**:
-  * 🌐 **Executive Dashboard**: [https://ledgerflow17.vercel.app/](https://ledgerflow17.vercel.app/)
-  * 📑 **Data Quality Audit Report**: [https://ledgerflow17.vercel.app/audit-report](https://ledgerflow17.vercel.app/audit-report)
-  * ⚡ **API Documentation (Swagger)**: [https://ledgerflow17.vercel.app/docs](https://ledgerflow17.vercel.app/docs)
+* **Automated Unit & Integration Tests**: **51 / 51 passing** (Pytest)
+* **Database**: PostgreSQL (10 tables with Primary & Foreign Keys, B-tree indexes)
 
 ---
 
-## 🔄 Simple Architecture & Data Flow
+## 🔄 End-to-End System Architecture
 
 ```mermaid
-flowchart LR
-    A["Raw Banking CSVs\n(5.86M rows)"] --> B["Python Validation Engine\n(41 Pytest Rules)"]
-    B -->|Bad Records| C["Dead Letter Queue (DLQ)\n(data/bad_records/*_bad.csv)\n• rejection_reason\n• processed_at"]
-    B -->|Clean Records| D["Clean Data\n(data/curated/*.csv)"]
-    D -->|PostgreSQL COPY| E[("PostgreSQL\nWarehouse\n(bank_dwh)")]
-    E --> F["FastAPI Dashboard\n& Customer 360 View"]
+flowchart TD
+    subgraph Ingestion["1. Secure Ingestion Layer"]
+        ZIP["AES-256 Protected Archive\n(banking_data_protected.zip)"]
+        SSM["AWS SSM Parameter Store\n(/ledgerflow/zip_password)\n[KMS SecureString]"]
+        RAW["Raw Ingestion Feeds\n(10 Banking Datasets • 5.86M Rows)"]
+        SSM -.->|Decryption Key| ZIP
+        ZIP --> RAW
+    end
+
+    subgraph Lakehouse["2. AWS S3 Lakehouse (ap-south-1)"]
+        S3B["Bronze: Raw Ingest\ns3://.../bronze/raw/"]
+        S3S["Silver: Curated Clean\ns3://.../silver/curated/"]
+        S3Q["Quarantine: Audited DLQ\ns3://.../quarantine/"]
+    end
+
+    subgraph Validation["3. Data Quality & Topological Validation Engine"]
+        VAL["51 Pytest Rules & Domain Validators\n- Regex, Range, Chronology, Reconciliation\n- Topological Parent-Child FK Verification"]
+        DLQ["Dead Letter Queue (DLQ)\n(data/bad_records/*_bad.csv)\n• rejection_reason\n• validation_stage\n• processed_at"]
+    end
+
+    subgraph Warehouse["4. PostgreSQL Relational Warehouse"]
+        PG["Staged Bulk Ingestion (bank_dwh)\n- Advisory Concurrency Locks\n- Staging Tables (stg_*)\n- Atomic Transactional Swap"]
+    end
+
+    subgraph Serving["5. Analytical Marts & Web Platform"]
+        M1["Customer 360 View"]
+        M2["Branch Performance Mart"]
+        M3["Risk & Loan Portfolio Mart"]
+        API["FastAPI REST API\n(Bearer Auth + RBAC + CORS)"]
+        WEB["Widescreen Banking Portal\n(Executive Dashboard & Audit Report)"]
+    end
+
+    RAW --> S3B
+    S3B --> VAL
+    VAL -- "Invalid / Orphan Rows (720k)" --> DLQ
+    DLQ --> S3Q
+    VAL -- "Validated & Cleansed (5.15M)" --> S3S
+    S3S -->|Staged Streaming COPY| PG
+    PG --> M1 & M2 & M3
+    M1 & M2 & M3 --> API
+    API --> WEB
 ```
-
----
-
-## 💡 How to Explain This Project in an Interview (Simple Script)
-
-### The 30-Second Elevator Pitch:
-> *"I built a banking data pipeline in Python that processes around 5.8 million records across 10 relational banking datasets—like customers, accounts, loans, and transactions. The main problem I solved was data quality: instead of letting corrupt records crash the database, my script validates each row, saves invalid rows into a Dead Letter Queue with the rejection reason, and bulk-loads only the clean rows into PostgreSQL using the COPY command. I also wrote 41 Pytest unit tests to verify the validation rules."*
-
----
-
-### Top 5 Interview Questions & Easy, Bulletproof Answers:
-
-#### Q1: "How did you validate and clean the data?"
-> *"I wrote Python validator functions for each dataset using Pandas. For example, for customers, I checked that email addresses match a valid regex, credit scores are between 300 and 850, and income is strictly positive. For transactions, I verified that amounts are greater than zero and that the account ID actually exists in the curated accounts table."*
-
-#### Q2: "What did you do when you found bad or corrupt rows?"
-> *"I used a Dead Letter Queue (DLQ) pattern. In banking, you can't just delete bad data or ignore it. When a row fails a rule, I write it to a `bad_records` CSV file and append two extra columns: `rejection_reason` (like 'Credit score out of bounds') and `processed_at`. This keeps the database clean while giving source teams an audit trail to fix the issues."*
-
-#### Q3: "How did you handle foreign key dependencies between tables?"
-> *"In a relational database, you cannot insert transactions if the accounts don't exist yet, and you cannot insert accounts if the customers don't exist. I executed the pipelines in a strict order: first master tables (Branches, Customers), then child tables (Accounts, Loans, Cards), and finally transaction tables. This guaranteed that when transactions were validated, all valid account IDs were already in memory for instant lookups."*
-
-#### Q4: "How did you handle memory constraints when processing 5.8M rows?"
-> *"The transaction dataset had over 2 million rows and card transactions had 3 million. Loading all of that into RAM at once can cause Out-Of-Memory errors. I used Pandas chunk streaming with `chunksize=250,000` to process the file in batches. For the database load, instead of slow `pandas.to_sql` which does row-by-row inserts, I used PostgreSQL's native `COPY` command via `psycopg2`, which streams CSV data directly into the database in seconds."*
-
-#### Q5: "How did you test your code?"
-> *"I wrote 41 automated unit tests using Pytest. The tests cover both valid data and edge cases—such as missing IFSC codes, duplicate IDs, negative balances, and loan payments where the principal plus interest doesn't equal the total amount. All 41 tests run automatically on every git push through GitHub Actions CI."*
 
 ---
 
@@ -96,53 +105,140 @@ flowchart LR
 
 ---
 
-## 🧪 What Validation Rules Are Tested? (41 Tests)
+## ⚡ Quickstart: One-Command Execution
 
-All 41 tests are defined in [`tests/test_validation.py`](tests/test_validation.py):
-
-* **Customers (4 tests)**: Valid records pass; invalid email formats rejected; credit scores outside 300–850 rejected; negative income rejected.
-* **Branches (4 tests)**: Missing IFSC code rejected; blank branch names rejected; duplicate IDs rejected; date parsing verified.
-* **Accounts (4 tests)**: Valid account types (Savings, Current, Salary, FD, NRI); negative balance rejected; orphan customer ID rejected.
-* **Employees (4 tests)**: Valid roles; negative salary rejected; orphan branch ID rejected.
-* **Transactions (4 tests)**: Zero or negative amounts rejected; channels validated (ATM, UPI, Mobile App); orphan account ID rejected.
-* **Loans (4 tests)**: Interest rate range (1% to 50%); negative loan term rejected; orphan customer ID rejected.
-* **Loan Payments (4 tests)**: Principal + Interest must equal total paid within 5 cents; negative amounts rejected.
-* **Cards (4 tests)**: Expiry date must be after issue date; negative limit rejected; dual foreign key (customer + account) checked.
-* **Card Transactions (4 tests)**: Empty merchant rejected; fraud flag must be 0 or 1; orphan card ID rejected.
-* **Support Tickets (5 tests)**: Resolved date cannot be before opened date; satisfaction score must be 1 to 5.
-
----
-
-## ⚡ How to Run This Project
-
-### 1. Run Unit Tests (Pytest)
-```bash
-pytest -v
-```
-
-### 2. Run the Full Pipeline (One Command)
+### Option A: Standard Full Pipeline Run (Local)
 ```bash
 ./run_all.sh
 ```
-*This runs all 41 tests, validates all 10 datasets, creates clean curated files and DLQ bad records, and loads PostgreSQL.*
-
-### 3. Start the Web Dashboard & API
+*Or using Make:*
 ```bash
-uvicorn scripts.api:app --reload
+make run
 ```
-Open **`http://localhost:8000`** in your browser to view the live dashboard, charts, and data explorer.
+> **What this executes:**
+> 1. Runs **51 Pytest validation, security, and refresh tests**.
+> 2. Executes the **10-dataset pipeline in topological dependency order** (~5.86M raw rows -> ~5.15M curated rows + 720k rows routed to DLQ).
+> 3. Connects to PostgreSQL, loads curated data via non-destructive staged `COPY`, and refreshes analytical summary tables.
+> 4. Generates an execution summary report showing processed counts and runtimes.
 
 ---
 
-## 🛠️ Tech Stack
+### Option B: Enterprise Secure Ingestion (AWS SSM + AES-256 ZIP)
+```bash
+./run_all.sh --secure
+```
+*Or using Make:*
+```bash
+make aws-secure
+```
+> **What this executes:**
+> 1. Dynamically connects to **AWS Systems Manager (SSM) Parameter Store** (`/ledgerflow/zip_password`).
+> 2. Decrypts the KMS `SecureString` password on the fly.
+> 3. Streams and extracts the AES-256 password-protected banking archive in memory.
+> 4. Validates data quality, routes bad records to DLQ, and streams clean data directly to PostgreSQL staging.
 
-* **Language**: Python 3.11+ (Pandas, Pytest)
-* **Database**: PostgreSQL (Foreign Keys, Indexes, Native `COPY`)
-* **Cloud Storage**: AWS S3 (Backup storage for raw and clean files)
-* **API & Web**: FastAPI, Uvicorn, Chart.js
-* **DevOps**: GitHub Actions (Automated CI), Docker
+---
+
+### Option C: AWS Cloud Lakehouse Execution
+```bash
+./run_all.sh --aws
+```
+*Or using Make:*
+```bash
+make aws-pipeline
+```
+> **What this executes:**
+> Ingests raw datasets to **AWS S3 Bronze** (`s3://.../bronze/raw/`), executes cleaning rules into **S3 Silver** (`s3://.../silver/curated/`), routes bad records to **S3 DLQ** (`s3://.../quarantine/`), and loads to PostgreSQL.
+
+---
+
+### Option D: Dockerized Warehouse & API Stack
+```bash
+docker-compose up --build -d
+```
+*Spins up PostgreSQL 15 and the FastAPI service with auto-initialized schemas and health checks on `http://localhost:8000`.*
+
+---
+
+## 🔒 Configuration & Security Architecture
+
+### Environment Variables (.env)
+Copy `.env.example` to `.env` to configure your environment. Required and optional parameters:
+
+| Variable | Required | Default | Description |
+| :--- | :---: | :--- | :--- |
+| `DB_HOST` | Yes | `localhost` | PostgreSQL host address |
+| `DB_PORT` | Yes | `5432` | PostgreSQL port |
+| `DB_NAME` | Yes | `bank_dwh` | Database name |
+| `DB_USER` | Yes | `postgres` | Warehouse database user |
+| `DB_PASSWORD` | Yes* | *(none)* | Warehouse password (required unless `DATABASE_URL` is set) |
+| `DATABASE_URL` | No | *(none)* | Full PostgreSQL connection URI |
+| `ALLOWED_ORIGINS` | No | `http://localhost:3000,http://localhost:8000...` | Strict CORS origin allowlist (comma-separated, no `*` in prod) |
+| `API_AUTH_ENABLED` | No | `false` | When `true`, enforces Bearer token authentication on all entity endpoints |
+| `API_KEYS` | If auth | *(none)* | Comma-separated `token:role` mappings (e.g., `key1:read_only,key2:analyst,key3:admin`) |
+| `DEMO_MODE` | No | `false` | When `false`, failed DB queries return HTTP 503; when `true`, explicitly serves labeled sandbox data |
+| `ZIP_DECRYPTION_PASSWORD` | If secure | *(none)* | AES-256 decryption key if AWS SSM is not used |
+| `AWS_ACCESS_KEY_ID` | If AWS | *(none)* | AWS access key for S3 / SSM |
+| `AWS_SECRET_ACCESS_KEY` | If AWS | *(none)* | AWS secret access key |
+| `AWS_DEFAULT_REGION` | If AWS | `ap-south-1` | AWS region |
+| `S3_BUCKET_NAME` | If AWS | *(none)* | S3 bucket for Bronze/Silver/DLQ layers |
+
+### Security Assumptions
+1. **Zero Hardcoded Secrets**: All passwords and keys are supplied via environment variables, container secrets, or AWS SSM Parameter Store. Missing database passwords fail fast at startup.
+2. **KMS-Only SSM Parameters**: Secrets pushed to SSM are stored strictly as KMS-backed `SecureString` types. Plaintext fallbacks are rejected.
+3. **Role-Based Access Control (RBAC)**:
+   - `read_only`: Can access `/customers`, `/customer/{id}`, `/accounts`, `/transactions`, `/loans`, `/cards`.
+   - `analyst`: Can additionally access `/dashboard` and `/customer-360`.
+   - `admin`: Full platform and administrative privileges.
+4. **Log Redaction**: Secret tokens, database URIs, passwords, and AWS credentials are automatically filtered and redacted from all console and file logs (`SensitiveDataFilter`).
+5. **Bounded API Requests**: Query endpoints enforce strict pagination (`ge=1, le=200`) and input validation to prevent memory exhaustion and Denial-of-Service.
+
+---
+
+## 🛡️ Safe Database Refreshes & Operational Reliability
+
+### Non-Destructive Staged Refreshes
+- **Staging Tables (`stg_*`)**: Clean curated data is loaded via binary `COPY` into unlogged staging tables rather than truncating live warehouse tables directly.
+- **Atomic Transactional Swap**: Live tables are swapped within a single transaction (`BEGIN ... INSERT ... COMMIT`). If a file is missing or a batch fails, the entire transaction rolls back cleanly, leaving existing data untouched.
+- **Concurrency Protection**: Uses PostgreSQL transactional advisory locks (`pg_try_advisory_lock`) to reject overlapping pipeline runs and prevent data corruption.
+- **Failure Transparency**: Database connection and query failures return explicit `HTTP 503 Service Unavailable` responses. Demo fallback data is served **only** when `DEMO_MODE=true` is explicitly configured.
+
+---
+
+## 🧪 Automated Testing Suite (51 Tests)
+
+All 51 tests are executed via `pytest`:
+* **Data Quality & Integrity (41 tests - `tests/test_validation.py`)**: Schema integrity, primary key constraints, domain boundary checks, foreign key referential integrity, accounting reconciliation.
+* **API Security & RBAC (7 tests - `tests/test_api_security.py`)**: Health/readiness checks, pagination bounds, Bearer token authentication, role-based authorization, CORS restriction, transparent 503 failure handling.
+* **Database Staged Refresh (3 tests - `tests/test_safe_refresh.py`)**: Staging table lifecycle, transactional swap ordering, concurrency advisory locks.
+
+---
+
+## ⚠️ Known Limitations & Production Readiness Roadmap
+
+1. **Schema Migrations**: Schema creation currently uses raw DDL scripts (`sql/schema/create_tables.sql`). Production systems should adopt **Alembic** or **Flyway** for tracked, reversible schema versions.
+2. **Automated Alerting**: Dead Letter Queue records are audited to CSV/S3, but real-time alerting (PagerDuty, Slack, Amazon SNS) on threshold spikes is not yet wired to a live notification bus.
+3. **Incremental CDC Sync**: The current pipeline performs scheduled bulk staged refreshes. Streaming change-data-capture (Debezium / Kafka Connect) would be required for sub-second replication.
+4. **Data Freshness SLAs**: Monitoring dashboards and automated SLA health probes should be integrated to enforce freshness guarantees.
+
+---
+
+## 📋 Master CLI Command Reference
+
+| Command | Action |
+| :--- | :--- |
+| **`./run_all.sh`** | **One-command master run**: executes 51 tests, 10 ETL pipelines, and DB load. |
+| **`./run_all.sh --secure`** | **Enterprise Secure Ingestion**: fetches AWS SSM key, decrypts AES-256 ZIP, and loads DB. |
+| **`./run_all.sh --aws`** | **AWS Cloud Lakehouse Run**: S3 Bronze ingestion, Glue ETL, DLQ routing, and DB load. |
+| **`./run_all.sh --test-only`**| Runs only the 51 Pytest validator & security test suite. |
+| **`./run_all.sh --api`** | Runs full pipeline and immediately launches local FastAPI server. |
+| **`make test`** | Runs Pytest with verbose test descriptions. |
+| **`make aws-secure`** | Runs the AWS SSM Parameter Store + AES-256 ZIP ingestion script. |
+| **`make etl`** | Runs the 10-dataset master ETL pipeline. |
+| **`make load`** | Loads curated CSVs into PostgreSQL via staged transactional COPY. |
+| **`docker-compose up --build -d`** | Starts containerized PostgreSQL warehouse and FastAPI. |
 
 ---
 
 ## 📄 License
-This project is open-source under the MIT License. Built for data engineering learning and technical interviews.
+This project is licensed under the MIT License. Built for data engineering demonstrations and technical interviews.

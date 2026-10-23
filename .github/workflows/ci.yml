@@ -26,9 +26,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 41 Data Quality & Integrity Validator Tests
+      - name: Run Data Quality, Security, and Refresh Tests
         run: |
-          pytest -v tests/test_validation.py
+          pytest -v tests/
 
       - name: Verify Module Imports & Fast API Initialization
         run: |

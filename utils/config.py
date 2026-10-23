@@ -26,6 +26,49 @@ DB_NAME = os.getenv("DB_NAME", "bank_dwh")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
+# API Security & Operations
+# Comma-separated list of allowed origins. Defaults to local UI/API origins if not provided.
+_default_origins = "http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000,https://ledgerflow17.vercel.app"
+raw_origins = os.getenv("ALLOWED_ORIGINS", _default_origins).strip()
+ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+# API Authentication & RBAC
+# API_AUTH_ENABLED: when True, all data-serving endpoints require valid Bearer token
+API_AUTH_ENABLED = os.getenv("API_AUTH_ENABLED", "false").lower() in ("true", "1", "yes")
+
+# API_KEYS parsed into a mapping of {token: role}
+# Supported roles: 'admin', 'analyst', 'read_only'
+API_KEYS = {}
+_raw_keys = os.getenv("API_KEYS", "")
+if _raw_keys:
+    for entry in _raw_keys.split(","):
+        if ":" in entry:
+            token, role = entry.split(":", 1)
+            API_KEYS[token.strip()] = role.strip().lower()
+        elif entry.strip():
+            API_KEYS[entry.strip()] = "read_only"
+
+# Explicit Demo Mode: When True, endpoints can serve sanitized demo datasets
+# When False (default for production), failed live queries return HTTP 503 instead of masking errors
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+
+# Secret Decryption Key (for encrypted zip ingestion)
+ZIP_DECRYPTION_PASSWORD = os.getenv("ZIP_DECRYPTION_PASSWORD", "")
+
+def validate_db_credentials(raise_on_missing: bool = False) -> bool:
+    """Verifies that database credentials are provided before attempting connection."""
+    if DATABASE_URL:
+        return True
+    if not DB_PASSWORD:
+        if raise_on_missing:
+            raise ValueError(
+                "Missing required DB_PASSWORD environment variable. "
+                "Set DB_PASSWORD or DATABASE_URL in your environment."
+            )
+        return False
+    return True
+
+
 # File paths
 CUSTOMERS_RAW = os.path.join(RAW_DIR, "customers.csv")
 CUSTOMERS_CURATED = os.path.join(CURATED_DIR, "customers.csv")

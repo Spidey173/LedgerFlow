@@ -31,6 +31,7 @@ from utils.config import (
     DB_NAME,
     DB_USER,
     DB_PASSWORD,
+    ZIP_DECRYPTION_PASSWORD,
 )
 from utils.logger import get_logger
 from validation.branch_validation import validate_branches
@@ -42,11 +43,12 @@ from cloud_aws.s3_uploader import ensure_bucket_exists
 
 logger = get_logger("secure_ingest")
 
-SSM_PARAM_NAME = "/ledgerflow/zip_password"
-DEFAULT_TEST_PASSWORD = "BankSecurePassword2026!"
+SSM_PARAM_NAME = os.getenv("SSM_ZIP_PARAM_NAME", "/ledgerflow/zip_password")
 
 def get_ssm_client():
     """Initializes authenticated boto3 SSM client."""
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+        raise ValueError("AWS credentials required to initialize SSM client.")
     return boto3.client(
         "ssm",
         region_name=AWS_DEFAULT_REGION,
@@ -56,6 +58,8 @@ def get_ssm_client():
 
 def get_s3_client():
     """Initializes authenticated boto3 S3 client."""
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+        raise ValueError("AWS credentials required to initialize S3 client.")
     return boto3.client(
         "s3",
         region_name=AWS_DEFAULT_REGION,
@@ -63,47 +67,57 @@ def get_s3_client():
         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
     )
 
-def put_ssm_zip_password(password: str = DEFAULT_TEST_PASSWORD, param_name: str = SSM_PARAM_NAME):
+def put_ssm_zip_password(password: str, param_name: str = SSM_PARAM_NAME):
     """
-    Stores the zip decryption password in AWS SSM Parameter Store as SecureString.
-    Falls back to String if KMS permissions are restricted.
+    Stores the zip decryption password in AWS SSM Parameter Store strictly as SecureString.
+    Refuses to fall back to plaintext String to maintain compliance.
     """
+    if not password:
+        raise ValueError("Cannot write an empty password to AWS SSM.")
     ssm = get_ssm_client()
     logger.info(f"Writing encrypted secret to AWS SSM Parameter: '{param_name}'...")
     try:
         ssm.put_parameter(
             Name=param_name,
-            Description="Password for decrypting banking data ZIP archives",
+            Description="KMS encrypted password for decrypting banking data ZIP archives",
             Value=password,
             Type="SecureString",
             Overwrite=True,
         )
         logger.info(f"Successfully stored SecureString in AWS SSM: '{param_name}'")
     except ClientError as e:
-        logger.warning(f"SecureString write notice ({e}). Storing as standard String in SSM...")
-        ssm.put_parameter(
-            Name=param_name,
-            Description="Password for decrypting banking data ZIP archives",
-            Value=password,
-            Type="String",
-            Overwrite=True,
+        logger.error(
+            f"Failed to store SecureString in AWS SSM ({e}). "
+            "Refusing to write unencrypted plaintext to SSM parameter store."
         )
-        logger.info(f"Successfully stored parameter in AWS SSM: '{param_name}'")
+        raise RuntimeError(
+            f"KMS encryption failed for SSM parameter '{param_name}'. "
+            "Ensure AWS KMS permissions are configured. Plaintext storage is disallowed."
+        ) from e
 
 def get_ssm_zip_password(param_name: str = SSM_PARAM_NAME) -> str:
     """
     Retrieves the decrypted password from AWS SSM Parameter Store.
+    If SSM is unreachable or not configured, checks for ZIP_DECRYPTION_PASSWORD env var.
+    Fails clearly if no secret is found.
     """
-    ssm = get_ssm_client()
-    logger.info(f"Fetching decryption password from AWS SSM Parameter Store: '{param_name}'...")
     try:
+        ssm = get_ssm_client()
+        logger.info(f"Fetching decryption password from AWS SSM Parameter Store: '{param_name}'...")
         response = ssm.get_parameter(Name=param_name, WithDecryption=True)
         password = response["Parameter"]["Value"]
-        logger.info("Successfully retrieved and decrypted password from AWS SSM!")
+        logger.info("Successfully retrieved and decrypted password from AWS SSM.")
         return password
     except Exception as e:
-        logger.error(f"Failed to fetch parameter from SSM: {e}")
-        raise e
+        logger.warning(f"Could not retrieve secret from SSM ({e}). Checking environment variables...")
+        if ZIP_DECRYPTION_PASSWORD:
+            logger.info("Using ZIP_DECRYPTION_PASSWORD from environment.")
+            return ZIP_DECRYPTION_PASSWORD
+        logger.error(f"Failed to fetch parameter from SSM and no ZIP_DECRYPTION_PASSWORD provided.")
+        raise ValueError(
+            f"Missing required decryption secret. Provide SSM parameter '{param_name}' "
+            "or set ZIP_DECRYPTION_PASSWORD in your environment."
+        ) from e
 
 def create_password_protected_zip(files_to_zip: dict, output_zip_path: str, password: str):
     """
@@ -178,8 +192,22 @@ def run_secure_pipeline():
     logger.info("SECURE BANKING INGESTION: AWS SSM PARAMETER + ENCRYPTED ZIP -> POSTGRES")
     logger.info("=" * 70)
 
-    # 1. Store secret in AWS SSM
-    put_ssm_zip_password(DEFAULT_TEST_PASSWORD, SSM_PARAM_NAME)
+    # Resolve decryption password: from environment or SSM
+    ingest_password = ZIP_DECRYPTION_PASSWORD
+    if not ingest_password:
+        try:
+            ingest_password = get_ssm_zip_password(SSM_PARAM_NAME)
+        except Exception:
+            raise ValueError(
+                "No encryption password available. Set ZIP_DECRYPTION_PASSWORD in environment "
+                "or configure AWS SSM parameter."
+            )
+
+    # 1. Optionally sync secret to AWS SSM if configured
+    try:
+        put_ssm_zip_password(ingest_password, SSM_PARAM_NAME)
+    except Exception as e:
+        logger.warning(f"Could not update SSM parameter ({e}). Continuing with local secret.")
 
     # 2. Create password-protected ZIP
     files_to_pack = {
@@ -187,7 +215,7 @@ def run_secure_pipeline():
         "customers.csv": os.path.join(RAW_DIR, "customers.csv"),
     }
     local_zip = os.path.join(RAW_DIR, "banking_data_protected.zip")
-    create_password_protected_zip(files_to_pack, local_zip, DEFAULT_TEST_PASSWORD)
+    create_password_protected_zip(files_to_pack, local_zip, ingest_password)
 
     # 3. Upload encrypted ZIP to AWS S3
     s3 = get_s3_client()

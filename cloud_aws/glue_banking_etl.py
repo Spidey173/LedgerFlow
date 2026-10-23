@@ -81,7 +81,7 @@ def upload_dataframe_to_s3(s3_client, df: pd.DataFrame, bucket: str, s3_key: str
     logger.info(f"Saved {len(df):,} records -> s3://{bucket}/{s3_key}")
 
 def load_df_to_postgres(df: pd.DataFrame, table_name: str, truncate_first: bool = True):
-    """Bulk loads a clean DataFrame directly into PostgreSQL via COPY streaming."""
+    """Bulk loads a clean DataFrame directly into PostgreSQL via COPY streaming into staging with rollback."""
     import io
     if df.empty:
         logger.warning(f"DataFrame for table '{table_name}' is empty. Skipping DB load.")
@@ -93,9 +93,9 @@ def load_df_to_postgres(df: pd.DataFrame, table_name: str, truncate_first: bool 
     cursor = conn.cursor()
 
     try:
-        if truncate_first:
-            cursor.execute(f"TRUNCATE TABLE {table_name} CASCADE;")
-            conn.commit()
+        staging_table = f"stg_{table_name}"
+        cursor.execute(f"DROP TABLE IF EXISTS {staging_table};")
+        cursor.execute(f"CREATE UNLOGGED TABLE {staging_table} (LIKE {table_name} INCLUDING DEFAULTS);")
 
         buffer = io.StringIO()
         df.to_csv(buffer, index=False, header=True)
@@ -103,13 +103,20 @@ def load_df_to_postgres(df: pd.DataFrame, table_name: str, truncate_first: bool 
         header = buffer.readline().strip()
         buffer.seek(0)
 
-        copy_sql = f"COPY {table_name} ({header}) FROM STDIN WITH CSV HEADER"
+        copy_sql = f"COPY {staging_table} ({header}) FROM STDIN WITH CSV HEADER"
         cursor.copy_expert(copy_sql, buffer)
+
+        # Atomic replacement: truncate live and copy from staging in single transaction
+        if truncate_first:
+            cursor.execute(f"TRUNCATE TABLE {table_name} CASCADE;")
+        cursor.execute(f"INSERT INTO {table_name} SELECT * FROM {staging_table};")
+        cursor.execute(f"DROP TABLE IF EXISTS {staging_table};")
+
         conn.commit()
         logger.info(f"Successfully committed {len(df):,} rows into '{table_name}'.")
     except Exception as e:
         conn.rollback()
-        logger.error(f"Failed to load into {table_name}: {e}")
+        logger.error(f"Failed to load into {table_name}: {e}. Rolled back transaction.")
         raise e
     finally:
         cursor.close()
