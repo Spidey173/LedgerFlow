@@ -1,7 +1,7 @@
 # 🏦 LedgerFlow — Banking Data Engineering Pipeline & Analytical Warehouse
 
 [![CI Pipeline](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Pytest-51%20Passed-brightgreen?style=flat-square&logo=pytest)](tests/)
+[![Tests](https://img.shields.io/badge/Pytest-53%20Passed-brightgreen?style=flat-square&logo=pytest)](tests/)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL-blue?style=flat-square&logo=postgresql&logoColor=white)](sql/schema/create_tables.sql)
 [![Python](https://img.shields.io/badge/Python-3.11+-yellow?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![AWS S3](https://img.shields.io/badge/AWS-S3%20Storage-orange?style=flat-square&logo=amazons3&logoColor=white)](cloud_aws/s3_uploader.py)
@@ -25,7 +25,7 @@ Processing **5.86 million core banking records** across 10 interconnected entiti
 3. **Enterprise Ingestion Security**: Protects raw data feeds using AES-256 encrypted ZIP archives decrypted on the fly using credentials stored in **AWS SSM Parameter Store** as a KMS `SecureString`.
 4. **Memory-Efficient Chunk Streaming**: Streams multi-million row transaction feeds (`chunksize=250k-300k`) and leverages PostgreSQL's native binary `COPY` protocol to bulk-load data with predictable RAM usage.
 5. **Non-Destructive Staged Refreshes**: Staged table swaps (`stg_*`) and PostgreSQL advisory locks protect the live warehouse against concurrency corruption and data loss on pipeline failure.
-6. **Continuous Quality Assurance**: 51 automated Pytest unit and integration tests run on every commit via **GitHub Actions CI**.
+6. **Continuous Quality Assurance**: 53 automated Pytest unit and integration tests run on every commit via **GitHub Actions CI**.
 
 ---
 
@@ -34,7 +34,7 @@ Processing **5.86 million core banking records** across 10 interconnected entiti
 * **Total Records Ingested**: **5,868,950** rows across 10 datasets
 * **Clean Records Loaded**: **5,148,430** rows (87.72% pass rate)
 * **Bad Records Quarantined**: **720,520** rows (saved in DLQ with audit reason)
-* **Automated Unit & Integration Tests**: **51 / 51 passing** (Pytest)
+* **Automated Unit & Integration Tests**: **53 / 53 passing** (Pytest)
 * **Database**: PostgreSQL (10 tables with Primary & Foreign Keys, B-tree indexes)
 
 ---

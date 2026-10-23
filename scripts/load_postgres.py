@@ -72,7 +72,9 @@ def load_all_curated_data(staged: bool = True):
     """
     Staged, Transactional Database Refresh:
     1. Validates presence of all curated datasets before modifying database state.
-    2. Uses PostgreSQL advisory locks to prevent concurrent refreshes.
+    2. Acquires PostgreSQL session-level advisory lock (`pg_try_advisory_lock`) on the dedicated connection
+       to serialize pipeline executions and prevent concurrent loaders. The lock is held across the session
+       and released explicitly in the finally block via `pg_advisory_unlock`.
     3. Loads CSVs into temporary staging tables (`stg_*`).
     4. Validates staging row counts.
     5. Atomically replaces data in target tables inside a single committed transaction.
@@ -107,8 +109,8 @@ def load_all_curated_data(staged: bool = True):
 
     ADVISORY_LOCK_ID = 482910471  # Arbitrary unique ID for pipeline concurrency lock
     try:
-        # Acquire transactional advisory lock to prevent concurrent loaders
-        logger.info("Acquiring database refresh advisory lock...")
+        # Acquire session-level advisory lock to serialize pipeline executions
+        logger.info("Acquiring database refresh session advisory lock...")
         cursor.execute("SELECT pg_try_advisory_lock(%s);", (ADVISORY_LOCK_ID,))
         acquired = cursor.fetchone()[0]
         if not acquired:

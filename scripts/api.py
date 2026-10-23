@@ -63,7 +63,14 @@ def require_role(min_role: str = "read_only"):
             )
 
         token = credentials.credentials
-        user_role = app_config.API_KEYS.get(token)
+        user_role = None
+
+        # Constant-time comparison across configured API keys to prevent timing attack side channels
+        import hmac
+        for valid_token, role in app_config.API_KEYS.items():
+            if hmac.compare_digest(token, valid_token):
+                user_role = role
+                break
 
         if not user_role:
             raise HTTPException(
