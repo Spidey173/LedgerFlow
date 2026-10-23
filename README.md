@@ -58,7 +58,7 @@ flowchart TD
     end
 
     subgraph Validation["3. Data Quality & Topological Validation Engine"]
-        VAL["Automated Pytest Suite (55 Tests)\n- 41 Quality & Integrity Validators\n- 7 API Security & RBAC Probes\n- 7 Staged Refresh & DB Integration"]
+        VAL["Automated Pytest Suite (55 Tests)\n- 41 Quality & Integrity Validators\n- 7 API Security & RBAC Probes\n- 3 Staged Refresh Lifecycle\n- 4 Live PostgreSQL Integration"]
         DLQ["Dead Letter Queue (DLQ)\n(data/bad_records/*_bad.csv)\n• rejection_reason\n• validation_stage\n• processed_at"]
     end
 
