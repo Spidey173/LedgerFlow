@@ -8,6 +8,10 @@ run:
 test:
 	pytest -v
 
+test-db:
+	createdb ledgerflow_test_db 2>/dev/null || true
+	psql -d ledgerflow_test_db -f sql/schema/create_tables.sql
+
 etl:
 	python3 scripts/run_pipeline.py
 
@@ -44,6 +48,7 @@ help:
 	@echo "LedgerFlow: Modern Banking Data Platform - Available Commands:"
 	@echo "  make run          - Run unit tests and full 10-dataset ETL pipeline"
 	@echo "  make test         - Run 55 test cases with pytest"
+	@echo "  make test-db      - Initialize local PostgreSQL test database schema"
 	@echo "  make etl          - Run the master ETL pipeline across all 10 datasets"
 	@echo "  make load         - Bulk load curated data into PostgreSQL data warehouse"
 	@echo "  make aws-upload   - Ingest raw banking CSVs to AWS S3 Data Lake (Bronze)"

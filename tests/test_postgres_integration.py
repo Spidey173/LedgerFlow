@@ -15,36 +15,14 @@ DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_PORT", 5432))
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
-def _initialize_schema_if_needed(conn):
-    """Initializes tables from sql/schema/create_tables.sql if not present."""
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT to_regclass('public.branches');")
-            exists = cur.fetchone()[0]
-            if exists is None:
-                schema_file = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "sql", "schema", "create_tables.sql"
-                )
-                if os.path.exists(schema_file):
-                    with open(schema_file, "r", encoding="utf-8") as f:
-                        cur.execute(f.read())
-        conn.commit()
-    except Exception:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-
 def get_test_db_conn():
     """
-    Connects to the test database.
-    If the test database does not exist, connects to default 'postgres' database,
-    creates the test database, initializes the schema, and returns the connection.
+    Connects to the explicitly provisioned test database (TEST_DB_NAME).
+    Returns None if unreachable, allowing live integration tests to skip cleanly
+    in environments where PostgreSQL is not provisioned.
     """
-    # 1. Try direct connection to TEST_DB_NAME
     try:
-        conn = psycopg2.connect(
+        return psycopg2.connect(
             host=DB_HOST,
             port=DB_PORT,
             dbname=TEST_DB_NAME,
@@ -52,43 +30,10 @@ def get_test_db_conn():
             password=DB_PASSWORD,
             connect_timeout=2
         )
-        _initialize_schema_if_needed(conn)
-        return conn
-    except Exception:
-        pass
-
-    # 2. If direct connection fails, try bootstrapping via default 'postgres' database
-    try:
-        admin_conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname="postgres",
-            user=CURRENT_USER,
-            password=DB_PASSWORD,
-            connect_timeout=2
-        )
-        admin_conn.autocommit = True
-        with admin_conn.cursor() as admin_cur:
-            admin_cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (TEST_DB_NAME,))
-            if not admin_cur.fetchone():
-                admin_cur.execute(f'CREATE DATABASE "{TEST_DB_NAME}";')
-        admin_conn.close()
-
-        # Connect to newly created database and initialize schema
-        new_conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=TEST_DB_NAME,
-            user=CURRENT_USER,
-            password=DB_PASSWORD,
-            connect_timeout=2
-        )
-        _initialize_schema_if_needed(new_conn)
-        return new_conn
     except Exception:
         return None
 
-# Mark tests to skip if PostgreSQL server is unreachable
+# Mark tests to skip if PostgreSQL test database is unreachable
 conn_check = get_test_db_conn()
 POSTGRES_AVAILABLE = conn_check is not None
 if conn_check:
@@ -97,7 +42,7 @@ if conn_check:
 pytestmark = pytest.mark.skipif(
     not POSTGRES_AVAILABLE,
     reason=f"PostgreSQL test database '{TEST_DB_NAME}' is not accessible on {DB_HOST}:{DB_PORT}. "
-           f"Start PostgreSQL or use 'docker-compose up -d postgres' to run live integration tests."
+           f"CI provisions this via postgres service container; locally, run 'make test-db' or 'docker-compose up -d postgres'."
 )
 
 def test_real_postgres_advisory_lock_mutual_exclusion():

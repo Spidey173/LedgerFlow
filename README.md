@@ -1,7 +1,7 @@
 # 🏦 LedgerFlow — Banking Data Engineering Pipeline & Analytical Warehouse
 
 [![CI Pipeline](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Spidey173/LedgerFlow/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Pytest-53%20Passed-brightgreen?style=flat-square&logo=pytest)](tests/)
+[![Tests](https://img.shields.io/badge/Pytest-55%20Tests-brightgreen?style=flat-square&logo=pytest)](tests/)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL-blue?style=flat-square&logo=postgresql&logoColor=white)](sql/schema/create_tables.sql)
 [![Python](https://img.shields.io/badge/Python-3.11+-yellow?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![AWS S3](https://img.shields.io/badge/AWS-S3%20Storage-orange?style=flat-square&logo=amazons3&logoColor=white)](cloud_aws/s3_uploader.py)
@@ -25,7 +25,7 @@ Processing **5.86 million core banking records** across 10 interconnected entiti
 3. **Enterprise Ingestion Security**: Protects raw data feeds using AES-256 encrypted ZIP archives decrypted on the fly using credentials stored in **AWS SSM Parameter Store** as a KMS `SecureString`.
 4. **Memory-Efficient Chunk Streaming**: Streams multi-million row transaction feeds (`chunksize=250k-300k`) and leverages PostgreSQL's native binary `COPY` protocol to bulk-load data with predictable RAM usage.
 5. **Non-Destructive Staged Refreshes**: Staged table swaps (`stg_*`) and PostgreSQL advisory locks protect the live warehouse against concurrency corruption and data loss on pipeline failure.
-6. **Continuous Quality Assurance**: 53 automated Pytest unit and integration tests run on every commit via **GitHub Actions CI**.
+6. **Continuous Quality Assurance**: 55 automated Pytest unit and integration tests (41 Data Quality, 7 API Security, 3 Staged Refresh, 4 Live PostgreSQL) run on every commit via **GitHub Actions CI**.
 
 ---
 
@@ -34,7 +34,7 @@ Processing **5.86 million core banking records** across 10 interconnected entiti
 * **Total Records Ingested**: **5,868,950** rows across 10 datasets
 * **Clean Records Loaded**: **5,148,430** rows (87.72% pass rate)
 * **Bad Records Quarantined**: **720,520** rows (saved in DLQ with audit reason)
-* **Automated Unit & Integration Tests**: **53 / 53 passing** (Pytest)
+* **Automated Unit & Integration Tests**: **55 / 55 tests** (41 Validation, 7 API Security, 3 Staged Refresh, 4 Live PostgreSQL)
 * **Database**: PostgreSQL (10 tables with Primary & Foreign Keys, B-tree indexes)
 
 ---
@@ -58,7 +58,7 @@ flowchart TD
     end
 
     subgraph Validation["3. Data Quality & Topological Validation Engine"]
-        VAL["51 Pytest Rules & Domain Validators\n- Regex, Range, Chronology, Reconciliation\n- Topological Parent-Child FK Verification"]
+        VAL["Automated Pytest Suite (55 Tests)\n- 41 Quality & Integrity Validators\n- 7 API Security & RBAC Probes\n- 7 Staged Refresh & DB Integration"]
         DLQ["Dead Letter Queue (DLQ)\n(data/bad_records/*_bad.csv)\n• rejection_reason\n• validation_stage\n• processed_at"]
     end
 
@@ -116,7 +116,7 @@ flowchart TD
 make run
 ```
 > **What this executes:**
-> 1. Runs **51 Pytest validation, security, and refresh tests**.
+> 1. Runs **55 automated Pytest tests** (41 validation, 7 security, 3 safe refresh, 4 live PostgreSQL).
 > 2. Executes the **10-dataset pipeline in topological dependency order** (~5.86M raw rows -> ~5.15M curated rows + 720k rows routed to DLQ).
 > 3. Connects to PostgreSQL, loads curated data via non-destructive staged `COPY`, and refreshes analytical summary tables.
 > 4. Generates an execution summary report showing processed counts and runtimes.
@@ -227,8 +227,8 @@ All 55 tests are executed via `pytest`:
 * **API Security & RBAC (7 tests - `tests/test_api_security.py`)**: Health/readiness probes, pagination bounds, Bearer token authentication, role-based authorization, CORS restriction, transparent 503 failure handling.
 * **Database Staged Refresh (3 tests - `tests/test_safe_refresh.py`)**: Staging table lifecycle, transactional swap ordering (non-blocking DELETE and optional TRUNCATE modes), session-level advisory lock mutual exclusion.
 * **Real PostgreSQL Integration (4 tests - `tests/test_postgres_integration.py`)**: Executed against live PostgreSQL instance: session-level advisory lock mutual exclusion across connections, non-blocking concurrent reader query performance under MVCC, full 10-dataset loader end-to-end execution, and full loader failure rollback.
-  * *Self-Bootstrapping*: Tests automatically provision and initialize `ledgerflow_test_db` schema from DDL if a PostgreSQL server is reachable.
-  * *CI Integration*: GitHub Actions (`.github/workflows/ci.yml`) runs a live containerized PostgreSQL 15 service, ensuring **all 55 tests pass in CI** without skipping. Local environments without PostgreSQL running will gracefully skip the 4 live database tests while executing the 51 unit and mock tests.
+  * *CI Integration*: GitHub Actions (`.github/workflows/ci.yml`) provisions a live containerized PostgreSQL 15 service and explicitly initializes the schema, ensuring **all 55 tests pass in CI**.
+  * *Local Environments*: When running locally without PostgreSQL provisioned, the 4 live database tests gracefully skip (51 passed, 4 skipped). To run the full 55 tests locally, start PostgreSQL and run `make test-db` to initialize the test schema.
 
 ---
 
