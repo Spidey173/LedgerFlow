@@ -42,7 +42,7 @@ aws-pipeline:
 	python3 cloud_aws/run_cloud_pipeline.py --flink
 
 aws-secure:
-	./venv/bin/python cloud_aws/secure_ingest.py
+	python3 cloud_aws/secure_ingest.py
 
 help:
 	@echo "LedgerFlow: Modern Banking Data Platform - Available Commands:"

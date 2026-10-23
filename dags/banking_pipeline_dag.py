@@ -22,9 +22,16 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.operators.empty import EmptyOperator
+try:
+    from airflow import DAG
+    from airflow.operators.python import PythonOperator
+    from airflow.operators.empty import EmptyOperator
+    AIRFLOW_AVAILABLE = True
+except ImportError:
+    AIRFLOW_AVAILABLE = False
+    DAG = None
+    PythonOperator = None
+    EmptyOperator = None
 
 # Import pipeline runner functions
 from scripts.process_branches import run_branches_pipeline
@@ -48,103 +55,105 @@ default_args = {
     "retry_delay": timedelta(minutes=2),
 }
 
-with DAG(
-    dag_id="banking_data_engineering_pipeline",
-    default_args=default_args,
-    description="Orchestrates ingestion, DQ validation, and curation for all 10 banking datasets",
-    schedule_interval="@daily",
-    catchup=False,
-    tags=["banking", "etl", "dq_validation", "curation"],
-) as dag:
+if AIRFLOW_AVAILABLE:
+    with DAG(
+        dag_id="banking_data_engineering_pipeline",
+        default_args=default_args,
+        description="Orchestrates ingestion, DQ validation, and curation for all 10 banking datasets",
+        schedule_interval="@daily",
+        catchup=False,
+        tags=["banking", "etl", "dq_validation", "curation"],
+    ) as dag:
 
-    start_pipeline = EmptyOperator(
-        task_id="start_pipeline",
-    )
+        start_pipeline = EmptyOperator(
+            task_id="start_pipeline",
+        )
 
-    # 1. Independent Core Dimensions
-    process_branches = PythonOperator(
-        task_id="process_branches",
-        python_callable=run_branches_pipeline,
-    )
+        # 1. Independent Core Dimensions
+        process_branches = PythonOperator(
+            task_id="process_branches",
+            python_callable=run_branches_pipeline,
+        )
 
-    process_customers = PythonOperator(
-        task_id="process_customers",
-        python_callable=run_customers_pipeline,
-    )
+        process_customers = PythonOperator(
+            task_id="process_customers",
+            python_callable=run_customers_pipeline,
+        )
 
-    # 2. Level 1 Downstream Entities
-    process_employees = PythonOperator(
-        task_id="process_employees",
-        python_callable=run_employees_pipeline,
-    )
+        # 2. Level 1 Downstream Entities
+        process_employees = PythonOperator(
+            task_id="process_employees",
+            python_callable=run_employees_pipeline,
+        )
 
-    process_accounts = PythonOperator(
-        task_id="process_accounts",
-        python_callable=run_accounts_pipeline,
-    )
+        process_accounts = PythonOperator(
+            task_id="process_accounts",
+            python_callable=run_accounts_pipeline,
+        )
 
-    process_loans = PythonOperator(
-        task_id="process_loans",
-        python_callable=run_loans_pipeline,
-    )
+        process_loans = PythonOperator(
+            task_id="process_loans",
+            python_callable=run_loans_pipeline,
+        )
 
-    process_support_tickets = PythonOperator(
-        task_id="process_support_tickets",
-        python_callable=run_support_tickets_pipeline,
-    )
+        process_support_tickets = PythonOperator(
+            task_id="process_support_tickets",
+            python_callable=run_support_tickets_pipeline,
+        )
 
-    # 3. Level 2 Downstream Entities
-    process_transactions = PythonOperator(
-        task_id="process_transactions",
-        python_callable=run_transactions_pipeline,
-    )
+        # 3. Level 2 Downstream Entities
+        process_transactions = PythonOperator(
+            task_id="process_transactions",
+            python_callable=run_transactions_pipeline,
+        )
 
-    process_loan_payments = PythonOperator(
-        task_id="process_loan_payments",
-        python_callable=run_loan_payments_pipeline,
-    )
+        process_loan_payments = PythonOperator(
+            task_id="process_loan_payments",
+            python_callable=run_loan_payments_pipeline,
+        )
 
-    process_cards = PythonOperator(
-        task_id="process_cards",
-        python_callable=run_cards_pipeline,
-    )
+        process_cards = PythonOperator(
+            task_id="process_cards",
+            python_callable=run_cards_pipeline,
+        )
 
-    # 4. Level 3 Downstream Entities
-    process_card_transactions = PythonOperator(
-        task_id="process_card_transactions",
-        python_callable=run_card_transactions_pipeline,
-    )
+        # 4. Level 3 Downstream Entities
+        process_card_transactions = PythonOperator(
+            task_id="process_card_transactions",
+            python_callable=run_card_transactions_pipeline,
+        )
 
-    end_pipeline = EmptyOperator(
-        task_id="end_pipeline",
-    )
+        end_pipeline = EmptyOperator(
+            task_id="end_pipeline",
+        )
 
-    # --- Dependency Graph ---
-    start_pipeline >> [process_branches, process_customers]
+        # --- Dependency Graph ---
+        start_pipeline >> [process_branches, process_customers]
 
-    # Branch lineage
-    process_branches >> process_employees
+        # Branch lineage
+        process_branches >> process_employees
 
-    # Customer lineage
-    process_customers >> [process_accounts, process_loans, process_support_tickets]
+        # Customer lineage
+        process_customers >> [process_accounts, process_loans, process_support_tickets]
 
-    # Accounts lineage
-    process_accounts >> process_transactions
+        # Accounts lineage
+        process_accounts >> process_transactions
 
-    # Multi-parent dependencies (Cards requires both Customers and Accounts)
-    [process_customers, process_accounts] >> process_cards
+        # Multi-parent dependencies (Cards requires both Customers and Accounts)
+        [process_customers, process_accounts] >> process_cards
 
-    # Loan Payments requires Loans
-    process_loans >> process_loan_payments
+        # Loan Payments requires Loans
+        process_loans >> process_loan_payments
 
-    # Card transactions requires Cards
-    process_cards >> process_card_transactions
+        # Card transactions requires Cards
+        process_cards >> process_card_transactions
 
-    # Pipeline Completion
-    [
-        process_employees,
-        process_transactions,
-        process_loan_payments,
-        process_card_transactions,
-        process_support_tickets,
-    ] >> end_pipeline
+        # Pipeline Completion
+        [
+            process_employees,
+            process_transactions,
+            process_loan_payments,
+            process_card_transactions,
+            process_support_tickets,
+        ] >> end_pipeline
+

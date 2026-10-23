@@ -1,15 +1,43 @@
 # LedgerFlow: Data Dictionary & Curated Schemas
- 
-This document details the curated schemas, constraints, field definitions, and business rules enforced across the LedgerFlow Enterprise Banking Data Warehouse.
+
+This document details the curated schemas, constraints, field definitions, and business rules enforced across the 10 datasets and analytical marts of the LedgerFlow Enterprise Banking Data Warehouse.
 
 ---
 
-## 1. Customers (`customers`)
+## 1. Branches (`branches`)
+Master lookup table defining physical banking branch networks and regulatory identifiers.
+
+| Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `branch_id` | INT | NO | **PK** | Unique identifier; positive integer | Branch ID (`101`) |
+| `branch_name` | VARCHAR(150) | NO | None | Stripped whitespace, Title Case | Branch location name (`Connaught Place Central`) |
+| `city` | VARCHAR(100) | NO | None | Title Case normalized | Branch municipality (`New Delhi`) |
+| `state` | VARCHAR(100) | NO | None | Title Case normalized | State jurisdiction (`Delhi`) |
+| `opened_date` | DATE | YES | None | Standardized `YYYY-MM-DD` | Branch commissioning date (`2015-06-01`) |
+| `ifsc_code` | VARCHAR(30) | NO | None | Alphanumeric regulatory routing code | Bank branch IFSC code (`BANK0000101`) |
+
+---
+
+## 2. Employees (`employees`)
+Staff and branch personnel managing operations and customer relationships.
+
+| Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `employee_id` | INT | NO | **PK** | Unique employee number | Employee identifier (`501`) |
+| `name` | VARCHAR(150) | NO | None | Stripped whitespace, Title Case | Full employee name (`Rajesh Sharma`) |
+| `branch_id` | INT | NO | **FK -> branches.branch_id** | Must exist in curated branches | Assigned branch location |
+| `role` | VARCHAR(100) | NO | None | Valid roles: `Teller`, `Customer Service`, `Relationship Manager`, `Loan Officer`, `Branch Manager`, `Compliance Officer` | Staff title |
+| `hire_date` | DATE | YES | None | Standardized `YYYY-MM-DD` | Employment commencement date |
+| `salary` | NUMERIC(12,2)| NO | None | Strictly positive (`> 0.00`) | Base annual compensation |
+
+---
+
+## 3. Customers (`customers`)
 Primary dimension table containing core demographic and financial profile data.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `customer_id` | INT | NO | **PK** | Unique identifier; cannot be empty | Unique customer number (e.g. `1001`) |
+| `customer_id` | INT | NO | **PK** | Unique identifier; cannot be empty | Unique customer number (`1001`) |
 | `name` | VARCHAR(150) | NO | None | Whitespace stripped, converted to Title Case | Full legal name (`Pooja Garcia`) |
 | `gender` | VARCHAR(20) | YES | None | Capitalized standard format | `Male`, `Female`, `Other` |
 | `date_of_birth`| DATE | YES | None | Standardized `YYYY-MM-DD` | Date of birth (`1987-12-11`) |
@@ -24,14 +52,14 @@ Primary dimension table containing core demographic and financial profile data.
 
 ---
 
-## 2. Accounts (`accounts`)
+## 4. Accounts (`accounts`)
 Deposit and transactional accounts held by customers.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `account_id` | INT | NO | **PK** | Unique identifier; cannot be empty | Account number (`14742`) |
 | `customer_id` | INT | NO | **FK -> customers.customer_id** | Must exist in curated customers | Owning customer ID |
-| `branch_id` | INT | NO | None | Master branch lookup | Associated branch number |
+| `branch_id` | INT | NO | **FK -> branches.branch_id** | Must exist in curated branches | Booking branch number |
 | `account_type` | VARCHAR(50) | NO | None | Domain: `Savings`, `Current`, `Salary`, `Fixed Deposit`, `NRI` | Product classification |
 | `balance` | NUMERIC(15,2)| NO | None | Non-negative (`>= 0.00`), 2 decimals | Available balance |
 | `open_date` | DATE | YES | None | Standardized `YYYY-MM-DD` | Account opening date |
@@ -39,7 +67,7 @@ Deposit and transactional accounts held by customers.
 
 ---
 
-## 3. Transactions (`transactions`)
+## 5. Transactions (`transactions`)
 Core ledger of deposit, withdrawal, and transfer events on bank accounts.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
@@ -54,14 +82,14 @@ Core ledger of deposit, withdrawal, and transfer events on bank accounts.
 
 ---
 
-## 4. Loans (`loans`)
+## 6. Loans (`loans`)
 Credit facilities and disbursed loans.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `loan_id` | INT | NO | **PK** | Unique loan identifier | Loan facility ID |
 | `customer_id` | INT | NO | **FK -> customers.customer_id** | Must exist in curated customers | Borrower customer ID |
-| `branch_id` | INT | NO | None | Branch lookup | Booking branch |
+| `branch_id` | INT | NO | **FK -> branches.branch_id** | Must exist in curated branches | Booking branch |
 | `loan_type` | VARCHAR(50) | NO | None | Domain: `Auto Loan`, `Business Loan`, `Education Loan`, `Gold Loan`, `Home Loan`, `Personal Loan` | Product type |
 | `loan_amount` | NUMERIC(15,2)| NO | None | Strictly positive (`> 0.00`) | Sanctioned principal amount |
 | `interest_rate`| NUMERIC(5,2) | NO | None | Realistic range (`1.00% - 50.00%`)| Annual interest rate percentage |
@@ -71,7 +99,7 @@ Credit facilities and disbursed loans.
 
 ---
 
-## 5. Loan Payments (`loan_payments`)
+## 7. Loan Payments (`loan_payments`)
 Repayment schedule events against loan facilities.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
@@ -86,7 +114,7 @@ Repayment schedule events against loan facilities.
 
 ---
 
-## 6. Cards (`cards`)
+## 8. Cards (`cards`)
 Debit and Credit card instruments issued to account holders.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
@@ -102,7 +130,7 @@ Debit and Credit card instruments issued to account holders.
 
 ---
 
-## 7. Card Transactions (`card_transactions`)
+## 9. Card Transactions (`card_transactions`)
 Point of Sale, Online, and ATM authorizations executed with cards.
 
 | Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
@@ -116,7 +144,24 @@ Point of Sale, Online, and ATM authorizations executed with cards.
 
 ---
 
-## 8. Analytical Mart: Customer 360 (`customer_360`)
+## 10. Support Tickets (`support_tickets`)
+Customer service inquiries, complaints, and disputes.
+
+| Column | Data Type | Nullable | Primary / Foreign Key | Validation / Business Rule | Description / Example |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `ticket_id` | INT | NO | **PK** | Unique support ticket ID | Ticket reference (`8001`) |
+| `customer_id` | INT | NO | **FK -> customers.customer_id** | Must exist in curated customers | Customer initiating issue |
+| `issue_type` | VARCHAR(100) | NO | None | Title Case normalized | Category (`Card Dispute`, `Billing Query`) |
+| `date_opened` | DATE | NO | None | Standardized `YYYY-MM-DD` | Incident report date |
+| `date_resolved`| DATE | YES | None | Standardized `YYYY-MM-DD`; `resolved >= opened` | Resolution date (null if open) |
+| `status` | VARCHAR(30) | NO | None | Domain: `Resolved`, `Open`, `Escalated` | Ticket lifecycle status |
+| `satisfaction_score`| INT | YES | None | Integer between `1` and `5` | Post-resolution CSAT score |
+
+---
+
+## 11. Analytical Marts
+
+### 11.1 Customer 360 (`customer_360`)
 Materialized single-view of the customer aggregating accounts, credit, loan balances, lifetime spending, and automated risk scoring.
 
 | Column | Data Type | Description |
@@ -134,3 +179,35 @@ Materialized single-view of the customer aggregating accounts, credit, loan bala
 | `lifetime_transactions` | INT | Count of ledger transactions |
 | `lifetime_transaction_volume` | NUMERIC(15,2) | Total transaction turnover |
 | `customer_segment` | VARCHAR(50) | Dynamic Tier: `Premium / Low Risk`, `Standard / Moderate Risk`, `Subprime / High Risk` |
+
+### 11.2 Monthly Customer Summary (`monthly_customer_summary`)
+Monthly financial cashflow mart detailing credit/debit totals, card spend, and outstanding obligations per customer.
+
+| Column | Data Type | Description |
+| :--- | :--- | :--- |
+| `customer_id` | INT | Customer identifier |
+| `customer_name` | VARCHAR(150) | Customer legal name |
+| `month_year` | VARCHAR(7) | Calendar month (`YYYY-MM`) |
+| `annual_income` | NUMERIC(15,2) | Customer annual income |
+| `credit_score` | INT | Credit score |
+| `bank_transactions_count` | INT | Count of account ledger transactions in the month |
+| `total_income_credits` | NUMERIC(15,2) | Inflow volume (Deposits, Transfers In, Interest) |
+| `total_expense_debits` | NUMERIC(15,2) | Outflow volume (Withdrawals, Transfers Out, Fees) |
+| `net_cashflow` | NUMERIC(15,2) | Net monthly cash balance delta (`credits - debits`) |
+| `total_card_spend` | NUMERIC(15,2) | Credit and debit card authorization total |
+| `card_fraud_count` | INT | Flagged fraudulent card transactions |
+| `outstanding_loan_balance` | NUMERIC(15,2) | Current active loan debt |
+
+### 11.3 Monthly Branch Summary (`monthly_branch_summary`)
+Operational metrics aggregating branch-level transactional turnover, active customer counts, and liquidity movements.
+
+| Column | Data Type | Description |
+| :--- | :--- | :--- |
+| `branch_id` | INT | Branch identifier |
+| `month_year` | VARCHAR(7) | Calendar month (`YYYY-MM`) |
+| `active_customers` | INT | Distinct customers transacting at branch in the month |
+| `total_accounts` | INT | Distinct accounts domiciled at branch |
+| `total_transactions` | INT | Number of ledger transactions |
+| `total_volume` | NUMERIC(15,2) | Aggregate transaction turnover |
+| `deposit_volume` | NUMERIC(15,2) | Total deposits received |
+| `withdrawal_volume` | NUMERIC(15,2) | Total withdrawals disbursed |
