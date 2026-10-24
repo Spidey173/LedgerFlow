@@ -40,32 +40,40 @@ class JsonFormatter(logging.Formatter):
 
 def get_logger(name: str) -> logging.Logger:
     """Returns a configured logger writing structured JSON to daily log file and readable text to console."""
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    today = datetime.now().strftime('%Y%m%d')
-    json_log_file = os.path.join(LOGS_DIR, f"pipeline_{today}.json.log")
-    text_log_file = os.path.join(LOGS_DIR, f"pipeline_{today}.log")
-
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.setLevel(logging.INFO)
         redaction_filter = SensitiveDataFilter()
         logger.addFilter(redaction_filter)
 
-        # Standard Text File Handler
-        fh = logging.FileHandler(text_log_file)
-        fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s"))
-        logger.addHandler(fh)
-
-        # Structured JSON File Handler
-        jfh = logging.FileHandler(json_log_file)
-        jfh.setFormatter(JsonFormatter())
-        logger.addHandler(jfh)
-
-        # Console Handler
+        # Console Handler (always enabled for container/serverless stdout)
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s"))
         logger.addHandler(ch)
+
+        # File Handlers (attempt local file logging; gracefully skip if filesystem is read-only)
+        try:
+            os.makedirs(LOGS_DIR, exist_ok=True)
+            today = datetime.now().strftime('%Y%m%d')
+            json_log_file = os.path.join(LOGS_DIR, f"pipeline_{today}.json.log")
+            text_log_file = os.path.join(LOGS_DIR, f"pipeline_{today}.log")
+
+            # Standard Text File Handler
+            fh = logging.FileHandler(text_log_file)
+            fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s"))
+            logger.addHandler(fh)
+
+            # Structured JSON File Handler
+            jfh = logging.FileHandler(json_log_file)
+            jfh.setFormatter(JsonFormatter())
+            logger.addHandler(jfh)
+        except (OSError, PermissionError):
+            # Filesystem is read-only (e.g. Vercel serverless / AWS Lambda).
+            # Fall back cleanly to console stream handler.
+            pass
+
     return logger
+
 
 def log_pipeline_summary(pipeline_name: str, start_time: datetime, end_time: datetime,
                          total_records: int, curated_records: int, bad_records: int,

@@ -10,7 +10,13 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 CURATED_DIR = os.path.join(DATA_DIR, "curated")
 BAD_RECORDS_DIR = os.path.join(DATA_DIR, "bad_records")
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
+
+# In serverless environments (e.g. Vercel, AWS Lambda), the deployment root is read-only
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    LOGS_DIR = os.getenv("LOGS_DIR", "/tmp/logs")
+else:
+    LOGS_DIR = os.getenv("LOGS_DIR", os.path.join(BASE_DIR, "logs"))
+
 
 # AWS Configuration
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
